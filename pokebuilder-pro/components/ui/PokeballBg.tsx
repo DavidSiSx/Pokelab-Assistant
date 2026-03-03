@@ -1,104 +1,159 @@
 "use client";
 
-/**
- * Pokeball SVG component with multiple variants for decorative use.
- * Uses currentColor + accent CSS vars to integrate with any theme.
- */
+import { useId } from "react";
 
-interface PokeballProps {
-  className?: string;
+/* ── Pokéball SVG minimalista ──────────────────────────────── */
+function PokeballSVG({ size = 20, opacity = 0.18 }: { size?: number; opacity?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 20 20"
+      fill="none"
+      aria-hidden="true"
+      style={{ opacity }}
+    >
+      {/* cuerpo */}
+      <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="1.4" />
+      {/* línea central */}
+      <line x1="1" y1="10" x2="19" y2="10" stroke="currentColor" strokeWidth="1.4" />
+      {/* botón central */}
+      <circle cx="10" cy="10" r="2.8" stroke="currentColor" strokeWidth="1.4" fill="none" />
+      {/* mitad superior rellena */}
+      <path
+        d="M10 1 A9 9 0 0 1 19 10 L13 10 A3 3 0 0 0 7 10 L1 10 A9 9 0 0 1 10 1Z"
+        fill="currentColor"
+        opacity="0.12"
+      />
+    </svg>
+  );
+}
+
+/* ── Tapiz CSS puro — sin JS para las posiciones ─────────────
+   Usamos un SVG embebido como data-URI en background-image
+   para lograr un pattern tile repetido infinitamente.
+   Cada tile es 36x36px con la pokéball centrada.
+─────────────────────────────────────────────────────────────── */
+export function PokeballPattern() {
+  // SVG inline → data-URI para usar como bg tile
+  const svgTile = encodeURIComponent(`
+    <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 36 36">
+      <circle cx="18" cy="18" r="8" stroke="white" stroke-width="1.2" fill="none" opacity="0.13"/>
+      <line x1="10" y1="18" x2="26" y2="18" stroke="white" stroke-width="1.2" opacity="0.13"/>
+      <circle cx="18" cy="18" r="2.4" stroke="white" stroke-width="1.2" fill="none" opacity="0.13"/>
+      <path d="M18 10 A8 8 0 0 1 26 18 L20.4 18 A2.4 2.4 0 0 0 15.6 18 L10 18 A8 8 0 0 1 18 10Z"
+            fill="white" opacity="0.04"/>
+    </svg>
+  `);
+
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        pointerEvents: "none",
+        zIndex: 0,
+        backgroundImage: `url("data:image/svg+xml,${svgTile}")`,
+        backgroundRepeat: "repeat",
+        backgroundSize: "36px 36px",
+        // Ligero offset para que no quede demasiado alineado
+        backgroundPosition: "0 0",
+      }}
+    />
+  );
+}
+
+/* ── Tapiz consistente — SVG como encodeURIComponent ────────
+   Sin rgba(), sin caracteres especiales → tile perfecto.
+─────────────────────────────────────────────────────────── */
+/* ── Tapiz animado diagonal (solo builder) ──────────────────
+   El tile es 48x48, animamos background-position de (0,0)
+   a (48px, -48px) → movimiento diagonal arriba-derecha.
+   Loop perfecto porque el tile se repite exactamente.
+─────────────────────────────────────────────────────────── */
+const POKEBALL_SVG = [
+  '<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48">',
+  '<circle cx="24" cy="24" r="10" stroke="white" stroke-width="1.3" fill="none" stroke-opacity="0.13"/>',
+  '<line x1="14" y1="24" x2="34" y2="24" stroke="white" stroke-width="1.3" stroke-opacity="0.13"/>',
+  '<circle cx="24" cy="24" r="3" stroke="white" stroke-width="1.3" fill="black" fill-opacity="0.1" stroke-opacity="0.13"/>',
+  '<path d="M24 14 A10 10 0 0 1 34 24 L27 24 A3 3 0 0 0 21 24 L14 24 A10 10 0 0 1 24 14Z" fill="white" fill-opacity="0.04"/>',
+  '</svg>',
+].join('');
+
+const TILE_URL = `url("data:image/svg+xml,${encodeURIComponent(POKEBALL_SVG)}")`;
+
+export function PokeballPatternDense() {
+  return (
+    <>
+      <style>{`
+        @keyframes pokeball-diagonal {
+          0%   { background-position: 0 0; }
+          100% { background-position: 48px -48px; }
+        }
+      `}</style>
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'fixed',
+          inset: 0,
+          pointerEvents: 'none',
+          zIndex: 0,
+          backgroundImage: TILE_URL,
+          backgroundRepeat: 'repeat',
+          backgroundSize: '48px 48px',
+          animation: 'pokeball-diagonal 6s linear infinite',
+        }}
+      />
+    </>
+  );
+}
+
+/* ── Pokeball decorativa (prop-driven) ────────────────────── */
+export function Pokeball({
+  size = 24,
+  opacity = 0.6,
+  className = "",
+}: {
   size?: number;
-  /** Opacity for the SVG (0-1) */
   opacity?: number;
+  className?: string;
+}) {
+  return (
+    <span className={className} style={{ display: "inline-flex", color: "var(--accent)" }}>
+      <PokeballSVG size={size} opacity={opacity} />
+    </span>
+  );
 }
 
-/** Classic closed Pokeball SVG */
-export function Pokeball({ className = "", size = 40, opacity = 1 }: PokeballProps) {
+/* ── Mini pokeball (para badges/bullets) ─────────────────── */
+export function PokeballMini({ size = 12 }: { size?: number }) {
+  return <PokeballSVG size={size} opacity={0.7} />;
+}
+
+/* ── PokeballOutline — solo el contorno, sin relleno ─────── */
+export function PokeballOutline({
+  size = 24,
+  className = "",
+  style,
+}: {
+  size?: number;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 100 100"
+      viewBox="0 0 24 24"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      style={{ opacity }}
       aria-hidden="true"
-    >
-      {/* Top half */}
-      <path
-        d="M50 5C25.147 5 5 25.147 5 50h90C95 25.147 74.853 5 50 5z"
-        fill="var(--accent)"
-      />
-      {/* Bottom half */}
-      <path
-        d="M50 95c24.853 0 45-20.147 45-45H5c0 24.853 20.147 45 45 45z"
-        fill="var(--bg-surface)"
-      />
-      {/* Center band */}
-      <rect x="5" y="46" width="90" height="8" fill="var(--border)" />
-      {/* Center circle outer */}
-      <circle cx="50" cy="50" r="14" fill="var(--border)" />
-      {/* Center circle inner */}
-      <circle cx="50" cy="50" r="9" fill="var(--bg-card)" />
-      {/* Center highlight */}
-      <circle cx="50" cy="50" r="5" fill="var(--accent-light)" opacity="0.6" />
-      {/* Outer ring */}
-      <circle cx="50" cy="50" r="46" stroke="var(--border)" strokeWidth="2" fill="none" />
-    </svg>
-  );
-}
-
-/** Pokeball outline - lighter, used for patterns and watermarks */
-export function PokeballOutline({ className = "", size = 40, opacity = 0.06 }: PokeballProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
       className={className}
-      style={{ opacity }}
-      aria-hidden="true"
+      style={{ color: "var(--accent)", ...style }}
     >
-      <circle cx="50" cy="50" r="46" stroke="currentColor" strokeWidth="2" />
-      <line x1="4" y1="50" x2="96" y2="50" stroke="currentColor" strokeWidth="2" />
-      <circle cx="50" cy="50" r="12" stroke="currentColor" strokeWidth="2" />
-      <circle cx="50" cy="50" r="6" fill="currentColor" opacity="0.3" />
-    </svg>
-  );
-}
-
-/** Floating pokeball background pattern */
-export function PokeballPattern({ className = "" }: { className?: string }) {
-  return (
-    <div className={`pokeball-pattern-container ${className}`} aria-hidden="true">
-      <PokeballOutline className="pokeball-float pokeball-float-1" size={80} opacity={0.04} />
-      <PokeballOutline className="pokeball-float pokeball-float-2" size={120} opacity={0.03} />
-      <PokeballOutline className="pokeball-float pokeball-float-3" size={60} opacity={0.05} />
-      <PokeballOutline className="pokeball-float pokeball-float-4" size={100} opacity={0.03} />
-      <PokeballOutline className="pokeball-float pokeball-float-5" size={50} opacity={0.04} />
-    </div>
-  );
-}
-
-/** Mini pokeball for inline decoration */
-export function PokeballMini({ className = "", size = 16 }: PokeballProps) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 100 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      aria-hidden="true"
-    >
-      <circle cx="50" cy="50" r="46" fill="var(--accent)" opacity="0.15" stroke="var(--accent)" strokeWidth="3" />
-      <line x1="4" y1="50" x2="96" y2="50" stroke="var(--accent)" strokeWidth="3" />
-      <circle cx="50" cy="50" r="12" fill="var(--bg-card)" stroke="var(--accent)" strokeWidth="3" />
-      <circle cx="50" cy="50" r="5" fill="var(--accent)" />
+      <circle cx="12" cy="12" r="10.5" stroke="currentColor" strokeWidth="1.5" />
+      <line x1="1.5" y1="12" x2="22.5" y2="12" stroke="currentColor" strokeWidth="1.5" />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" fill="none" />
     </svg>
   );
 }

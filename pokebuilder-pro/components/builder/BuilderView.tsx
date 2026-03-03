@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useBuilder } from "@/hooks/useBuilder";
 import { useTeams } from "@/hooks/useTeams";
 import { useAuth } from "@/providers/AuthProvider";
@@ -15,13 +15,28 @@ import { SaveTeamModal } from "@/components/builder/SaveTeamModal";
 import { WeaknessBar } from "@/components/builder/WeaknessBar";
 import { WeaknessMatrix } from "@/components/builder/WeaknessMatrix";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { PokeballPattern, Pokeball } from "@/components/ui/PokeballBg";
+import { PokeballPatternDense, Pokeball } from "@/components/ui/PokeballBg";
 import { getTeamWeaknessProfile } from "@/utils/type-chart";
 import {
   Wand2, RotateCcw, Save, ClipboardCopy, Sparkles, Crown, Dices,
 } from "lucide-react";
 
 type BuildMode = "leader" | "scratch";
+
+const LS_KEY = "pokelab_builder_state";
+
+function loadSaved() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+
+function saveToDisk(data: object) {
+  if (typeof window === "undefined") return;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
+}
 
 export function BuilderView() {
   const {
@@ -34,42 +49,40 @@ export function BuilderView() {
   const { saveTeam, saving } = useTeams();
   const { user } = useAuth();
 
-  const [mode, setMode] = useState<BuildMode>("leader");
-  const [leader, setLeader] = useState<TeamMember | null>(null);
+  // ── Restore persisted state ──────────────────────────────
+  const saved = useMemo(() => loadSaved(), []);
+  const [mode, setMode] = useState<BuildMode>(saved?.mode ?? "leader");
+  const [leader, setLeader] = useState<TeamMember | null>(saved?.leader ?? null);
+
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showMatrix, setShowMatrix] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // ── Persist mode + leader ────────────────────────────────
+  useEffect(() => {
+    saveToDisk({ mode, leader });
+  }, [mode, leader]);
+
   const hasTeam = team.some((s) => s !== null);
   const selectedPokemon = selectedSlot !== null ? team[selectedSlot] : null;
   const selectedBuild = selectedPokemon ? builds[String(selectedPokemon.id)] : undefined;
 
-  const filledTeam = useMemo(
-    () => team.filter(Boolean) as TeamMember[],
-    [team]
-  );
-
+  const filledTeam = useMemo(() => team.filter(Boolean) as TeamMember[], [team]);
   const weaknessProfile = useMemo(
-    () =>
-      filledTeam.length > 0
-        ? getTeamWeaknessProfile(filledTeam)
-        : null,
+    () => filledTeam.length > 0 ? getTeamWeaknessProfile(filledTeam) : null,
     [filledTeam]
   );
 
   async function handleSave(nombre: string, descripcion: string, isPublic: boolean) {
     const teamMembers = team.filter(Boolean) as TeamMember[];
     await saveTeam({
-      nombre,
-      descripcion,
+      nombre, descripcion,
       team: teamMembers,
-      builds,
-      config,
+      builds, config,
       aiReport: aiReport ?? undefined,
       isPublic,
-      formato: config.format,
     });
     setShowSaveModal(false);
     setSaveSuccess(true);
@@ -77,16 +90,24 @@ export function BuilderView() {
   }
 
   function handleRemoveSlot(index: number) {
+    // Slot 0 (líder) no se puede quitar mientras genera o está fijado
+    if (loading) return;
     setSlot(index, null);
     if (selectedSlot === index) setSelectedSlot(null);
   }
 
+  function handleClearLeader() {
+    if (loading) return;
+    setLeader(null);
+  }
+
   function handleGenerate() {
-    if (mode === "leader") {
-      generateTeam(leader);
-    } else {
-      generateTeam(null);
-    }
+    generateTeam(mode === "leader" ? leader : null);
+  }
+
+  function handleReset() {
+    reset();
+    setSelectedSlot(null);
   }
 
   function exportToShowdown() {
@@ -97,13 +118,14 @@ export function BuilderView() {
       lines.push(`${p.nombre}${b?.item ? ` @ ${b.item}` : ""}`);
       if (b?.ability) lines.push(`Ability: ${b.ability}`);
       if (b?.tera_type) lines.push(`Tera Type: ${b.tera_type}`);
-      const evParts = [];
-      if (b?.ev_hp) evParts.push(`${b.ev_hp} HP`);
-      if (b?.ev_atk) evParts.push(`${b.ev_atk} Atk`);
-      if (b?.ev_def) evParts.push(`${b.ev_def} Def`);
-      if (b?.ev_spa) evParts.push(`${b.ev_spa} SpA`);
-      if (b?.ev_spd) evParts.push(`${b.ev_spd} SpD`);
-      if (b?.ev_spe) evParts.push(`${b.ev_spe} Spe`);
+      const evParts = [
+        b?.ev_hp  && `${b.ev_hp} HP`,
+        b?.ev_atk && `${b.ev_atk} Atk`,
+        b?.ev_def && `${b.ev_def} Def`,
+        b?.ev_spa && `${b.ev_spa} SpA`,
+        b?.ev_spd && `${b.ev_spd} SpD`,
+        b?.ev_spe && `${b.ev_spe} Spe`,
+      ].filter(Boolean);
       if (evParts.length) lines.push(`EVs: ${evParts.join(" / ")}`);
       if (b?.nature) lines.push(`${b.nature} Nature`);
       b?.moves?.filter(Boolean).forEach((m) => lines.push(`- ${m}`));
@@ -119,168 +141,142 @@ export function BuilderView() {
   }
 
   return (
-    <div className="relative w-full min-h-screen">
-      <PokeballPattern />
-      <div className="relative z-[1] w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-6">
-        {/* ── Header ──────────────────────────────────── */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
-              >
-                <Pokeball size={22} />
-              </div>
-              <h1
-                className="font-bold text-balance"
-                style={{ color: "var(--text-primary)", fontSize: "clamp(1.35rem,3vw,1.75rem)" }}
-              >
+    <div className="relative w-full">
+      {/* Fondo animado — solo en builder */}
+      <PokeballPatternDense />
+
+      <div
+        className="relative z-[1] w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-5"
+        style={{ paddingBottom: 96 }} /* margen para bottom nav */
+      >
+
+        {/* ── Header ── */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
+            >
+              <Pokeball size={22} />
+            </div>
+            <div>
+              <h1 className="font-bold text-lg leading-tight" style={{ color: "var(--text-primary)" }}>
                 Team Builder
               </h1>
+              <p className="text-xs leading-snug" style={{ color: "var(--text-muted)" }}>
+                Configura y genera tu equipo competitivo con IA
+              </p>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              Elige un modo, configura y genera tu equipo competitivo con IA.
-            </p>
           </div>
 
           {hasTeam && (
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-shrink-0">
               {user && (
-                <button
-                  className="btn-primary text-xs flex items-center gap-1.5"
-                  onClick={() => setShowSaveModal(true)}
-                >
-                  <Save size={14} />
-                  Guardar
+                <button className="btn-primary text-xs" onClick={() => setShowSaveModal(true)}>
+                  <Save size={13} /> Guardar
                 </button>
               )}
-              <button
-                className="btn-secondary text-xs flex items-center gap-1.5"
-                onClick={copyShowdown}
-              >
-                <ClipboardCopy size={14} />
-                {copied ? "Copiado!" : "Showdown"}
+              <button className="btn-secondary text-xs" onClick={copyShowdown}>
+                <ClipboardCopy size={13} />
+                {copied ? "¡Copiado!" : "Showdown"}
               </button>
             </div>
           )}
         </div>
 
-        {/* ── Mode Toggle ─────────────────────────────── */}
+        {/* ── Mode Toggle ── */}
         <div
           className="flex gap-1 p-1 rounded-xl w-fit"
           style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
         >
-          <button
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
-            style={{
-              background: mode === "leader" ? "var(--accent)" : "transparent",
-              color: mode === "leader" ? "#fff" : "var(--text-secondary)",
-              boxShadow: mode === "leader" ? "0 2px 12px var(--accent-glow)" : "none",
-            }}
-            onClick={() => setMode("leader")}
-          >
-            <Crown size={15} />
-            Con Lider
-          </button>
-          <button
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
-            style={{
-              background: mode === "scratch" ? "var(--accent)" : "transparent",
-              color: mode === "scratch" ? "#fff" : "var(--text-secondary)",
-              boxShadow: mode === "scratch" ? "0 2px 12px var(--accent-glow)" : "none",
-            }}
-            onClick={() => setMode("scratch")}
-          >
-            <Dices size={15} />
-            Desde Cero
-          </button>
+          {(["leader", "scratch"] as const).map((m) => (
+            <button
+              key={m}
+              onClick={() => !loading && setMode(m)}
+              disabled={loading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
+              style={{
+                background: mode === m ? "var(--accent)" : "transparent",
+                color: mode === m ? "#fff" : "var(--text-secondary)",
+                boxShadow: mode === m ? "0 2px 12px var(--accent-glow)" : "none",
+                cursor: loading ? "not-allowed" : "pointer",
+                opacity: loading && mode !== m ? 0.5 : 1,
+              }}
+            >
+              {m === "leader" ? <Crown size={14} /> : <Dices size={14} />}
+              {m === "leader" ? "Con Líder" : "Desde Cero"}
+            </button>
+          ))}
         </div>
 
-        {/* ── Alerts ──────────────────────────────────── */}
+        {/* ── Alerts ── */}
         {error && (
-          <div
-            className="rounded-xl px-4 py-3 text-sm animate-slide-up"
-            style={{
-              background: "rgba(239,68,68,0.08)",
-              color: "var(--danger)",
-              border: "1px solid rgba(239,68,68,0.2)",
-            }}
-            role="alert"
-          >
+          <div className="rounded-xl px-4 py-3 text-sm animate-slide-up" role="alert"
+            style={{ background: "rgba(239,68,68,0.08)", color: "var(--danger)", border: "1px solid rgba(239,68,68,0.2)" }}>
             {error}
           </div>
         )}
         {saveSuccess && (
-          <div
-            className="rounded-xl px-4 py-3 text-sm animate-slide-up"
-            style={{
-              background: "rgba(34,197,94,0.08)",
-              color: "var(--success)",
-              border: "1px solid rgba(34,197,94,0.2)",
-            }}
-            role="status"
-          >
-            Equipo guardado correctamente.
+          <div className="rounded-xl px-4 py-3 text-sm animate-slide-up" role="status"
+            style={{ background: "rgba(34,197,94,0.08)", color: "var(--success)", border: "1px solid rgba(34,197,94,0.2)" }}>
+            ✓ Equipo guardado correctamente.
           </div>
         )}
 
-        {/* ── Main Layout ─────────────────────────────── */}
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-          {/* Left sidebar: Config + Leader/Generate */}
-          <aside className="flex flex-col gap-4 lg:w-72 xl:w-80 lg:flex-shrink-0 lg:sticky lg:top-20">
+        {/* ── Main Layout ── */}
+        <div className="grid gap-5" style={{ gridTemplateColumns: "280px 1fr", alignItems: "start" }}>
+
+          {/* ── Left sidebar ── */}
+          <div
+            className="flex flex-col gap-3"
+            style={{
+              position: "sticky",
+              top: 80,
+              maxHeight: "calc(100vh - 100px)",
+              overflowY: "auto",
+              scrollbarWidth: "none",
+              paddingBottom: 80,
+            }}
+          >
             <BuilderConfigPanel config={config} onChange={setConfig} />
 
-            {/* Leader search (only in leader mode) */}
             {mode === "leader" && (
-              <div className="flex flex-col gap-2 animate-fade-in">
-                <span
-                  className="text-[0.65rem] uppercase tracking-widest font-bold px-1"
-                  style={{ color: "var(--text-muted)" }}
-                >
-                  Lider del Equipo
+              <div className="flex flex-col gap-1.5 animate-fade-in">
+                <span className="text-[0.6rem] uppercase tracking-widest font-bold px-0.5"
+                  style={{ color: "var(--text-muted)" }}>
+                  Líder del Equipo
                 </span>
                 <LeaderSearch
                   selected={leader}
-                  onSelect={setLeader}
-                  onClear={() => setLeader(null)}
+                  onSelect={(p) => !loading && setLeader(p)}
+                  onClear={handleClearLeader}
+                  disabled={loading}
                 />
               </div>
             )}
 
-            {/* Generate button */}
             <button
-              className="btn-primary w-full flex items-center justify-center gap-2 animate-pulse-glow"
+              className="btn-primary w-full animate-pulse-glow"
               onClick={handleGenerate}
               disabled={loading || (mode === "leader" && !leader)}
-              style={{ padding: "12px 16px", fontSize: "0.875rem" }}
+              style={{ padding: "11px 16px" }}
             >
               {loading ? (
-                <>
-                  <Pokeball size={18} className="animate-rotate-pokeball" />
-                  Generando...
-                </>
+                <><Pokeball size={16} className="animate-rotate-pokeball" /> Generando...</>
               ) : mode === "leader" ? (
-                <>
-                  <Crown size={16} />
-                  {leader ? `Construir con ${leader.nombre}` : "Elige un Lider"}
-                </>
+                <><Crown size={15} />{leader ? `Construir con ${leader.nombre}` : "Elige un Líder"}</>
               ) : (
-                <>
-                  <Sparkles size={16} />
-                  Generar Equipo Completo
-                </>
+                <><Sparkles size={15} /> Generar Equipo Completo</>
               )}
             </button>
 
             {hasTeam && (
               <button
-                className="btn-secondary w-full flex items-center justify-center gap-2"
-                onClick={reset}
+                className="btn-secondary w-full"
+                onClick={handleReset}
                 disabled={loading}
               >
-                <RotateCcw size={14} />
-                Resetear
+                <RotateCcw size={13} /> Resetear
               </button>
             )}
 
@@ -288,23 +284,24 @@ export function BuilderView() {
               feedback={feedback}
               blacklist={blacklist}
               onFeedbackChange={setFeedback}
-              onRegenerate={() => handleGenerate()}
+              onRegenerate={handleGenerate}
               onClearBlacklist={clearBlacklist}
               loading={loading}
               hasTeam={hasTeam}
             />
-          </aside>
+          </div>
 
-          {/* Center: Team Grid */}
-          <div className="flex-1 flex flex-col gap-5 min-w-0">
+          {/* ── Center + Right ── */}
+          <div className="flex flex-col gap-4 min-w-0">
+
             {loading && !hasTeam ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 stagger-children">
+              <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 stagger-children">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="skeleton rounded-xl" style={{ height: 120 }} />
+                  <div key={i} className="skeleton rounded-xl" style={{ height: 130 }} />
                 ))}
               </div>
             ) : hasTeam ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 stagger-children">
+              <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 stagger-children">
                 {team.map((pokemon, i) => (
                   <TeamSlot
                     key={i}
@@ -314,76 +311,78 @@ export function BuilderView() {
                     locked={lockedSlots[i]}
                     selected={selectedSlot === i}
                     isLeader={mode === "leader" && i === 0 && !!pokemon}
-                    onLock={lockSlot}
+                    // Deshabilitar remove en slot 0 (líder) mientras genera
+                    // y en todos los slots durante generación
+                    onLock={loading ? undefined : lockSlot}
                     onSelect={setSelectedSlot}
-                    onRemove={handleRemoveSlot}
+                    onRemove={loading ? undefined : handleRemoveSlot}
                   />
                 ))}
               </div>
             ) : (
               <EmptyState
                 icon={<Wand2 size={28} />}
-                title={
-                  mode === "scratch"
-                    ? "Modo Desde Cero"
-                    : "Elige un Lider"
-                }
+                title={mode === "scratch" ? "Modo Desde Cero" : "Elige un Líder"}
                 description={
                   mode === "scratch"
                     ? "Presiona Generar para crear un equipo completo de 6 con IA."
-                    : "Selecciona un Pokemon lider y presiona Construir para armar tu equipo."
+                    : "Selecciona un Pokémon líder y presiona Construir para armar tu equipo."
                 }
               />
             )}
 
-            {/* Weakness Bar */}
+            {/* Loading overlay sobre el team existente */}
+            {loading && hasTeam && (
+              <div
+                className="rounded-xl px-4 py-3 text-sm flex items-center gap-3 animate-fade-in"
+                style={{
+                  background: "var(--accent-glow)",
+                  border: "1px solid var(--accent)",
+                  color: "var(--accent-light)",
+                }}
+              >
+                <Pokeball size={16} className="animate-rotate-pokeball" />
+                Regenerando equipo con nuevo feedback…
+              </div>
+            )}
+
             {weaknessProfile && hasTeam && (
-              <WeaknessBar
-                profile={weaknessProfile}
-                onOpenMatrix={() => setShowMatrix(true)}
-              />
+              <WeaknessBar profile={weaknessProfile} onOpenMatrix={() => setShowMatrix(true)} />
             )}
 
             {!user && hasTeam && (
               <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Inicia sesion para guardar equipos.
+                Inicia sesión para guardar equipos.
               </p>
             )}
-          </div>
 
-          {/* Right: Build Detail */}
-          {(selectedPokemon || (hasTeam && aiReport)) && (
-            <aside className="flex flex-col gap-4 lg:w-72 xl:w-80 lg:flex-shrink-0 lg:sticky lg:top-20">
-              {selectedPokemon && selectedBuild && (
-                <BuildCard
-                  pokemon={selectedPokemon}
-                  build={selectedBuild}
-                  aiRole={selectedPokemon.rol}
-                  isLeader={mode === "leader" && selectedSlot === 0}
-                  onClose={() => setSelectedSlot(null)}
-                />
-              )}
-              {aiReport && <AiReportPanel report={aiReport} />}
-            </aside>
-          )}
+            {(selectedPokemon || (hasTeam && aiReport)) && (
+              <div
+                className="grid gap-4"
+                style={{ gridTemplateColumns: selectedPokemon && aiReport ? "1fr 1fr" : "1fr" }}
+              >
+                {selectedPokemon && selectedBuild && (
+                  <BuildCard
+                    pokemon={selectedPokemon}
+                    build={selectedBuild}
+                    aiRole={selectedPokemon.rol}
+                    isLeader={mode === "leader" && selectedSlot === 0}
+                    onClose={() => setSelectedSlot(null)}
+                  />
+                )}
+                {aiReport && <AiReportPanel report={aiReport} />}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Weakness Matrix Modal */}
+      {/* Modals */}
       {showMatrix && weaknessProfile && (
-        <WeaknessMatrix
-          profile={weaknessProfile}
-          onClose={() => setShowMatrix(false)}
-        />
+        <WeaknessMatrix profile={weaknessProfile} onClose={() => setShowMatrix(false)} />
       )}
-
-      {/* Save Modal */}
       {showSaveModal && (
-        <SaveTeamModal
-          onSave={handleSave}
-          onClose={() => setShowSaveModal(false)}
-          saving={saving}
-        />
+        <SaveTeamModal onSave={handleSave} onClose={() => setShowSaveModal(false)} saving={saving} />
       )}
     </div>
   );

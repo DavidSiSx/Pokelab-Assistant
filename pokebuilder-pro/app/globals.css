@@ -615,3 +615,130 @@ body {
 .type-glow:hover {
   box-shadow: 0 0 12px var(--accent-glow), 0 4px 16px rgba(0,0,0,0.2);
 }
+/* ══════════════════════════════════════════════════════
+   PATCH — scroll, cursor, layout fixes
+══════════════════════════════════════════════════════ */
+
+/* ── Pokeball bg diagonal animation (builder only) ── */
+@keyframes pokeball-diagonal {
+  0%   { background-position: 0 0; }
+  100% { background-position: 48px -48px; }
+}
+
+.pokeball-bg-animated {
+  animation: pokeball-diagonal 6s linear infinite;
+}
+
+/* Fix: página sin scroll horizontal no deseado */
+html, body {
+  overflow-x: hidden;
+  scroll-behavior: smooth;
+}
+
+/* Fix: sidebar scrollbar invisible pero funcional */
+.sidebar-scroll::-webkit-scrollbar { display: none; }
+.sidebar-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Fix: cursor pointer global en todos los elementos interactivos */
+button:not(:disabled),
+[role="button"]:not(:disabled),
+[role="switch"],
+[role="tab"],
+[role="option"],
+select,
+label[for],
+a[href] {
+  cursor: pointer;
+}
+
+button:disabled,
+[role="button"]:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Fix: card-hover con cursor pointer */
+.card-hover,
+.glass-card[data-clickable] {
+  cursor: pointer;
+}
+
+/* Fix: TeamSlot y BuildCard clickeables */
+.team-slot-btn {
+  cursor: pointer;
+}
+.team-slot-btn:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Fix: tipo badges no colapsan */
+.type-badge {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Fix: dropdown no se corta */
+.dropdown-portal {
+  position: fixed;
+  z-index: 9999;
+}
+
+/* Fix: sticky sidebar overflow bien controlado */
+.sticky-sidebar {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.sticky-sidebar::-webkit-scrollbar { display: none; }
+
+/* Fix: imágenes de sprite no se distorsionan */
+img[alt] {
+  image-rendering: pixelated;
+}
+
+/* Fix: grid de equipo no se desborda en mobile */
+@media (max-width: 640px) {
+  .team-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+/* Fix: padding lateral aprovechado en pantallas anchas */
+@media (min-width: 1536px) {
+  .builder-container {
+    padding-left: 3rem;
+    padding-right: 3rem;
+  }
+}
+
+/* Fix: Modal no se puede hacer scroll detrás */
+body:has(.overlay) {
+  overflow: hidden;
+}
+
+/* Fix: animaciones no se acumulan en hover rápido */
+.animate-pop {
+  animation-fill-mode: forwards;
+}
+
+/* Fix: LeaderSearch dropdown z-index */
+.leader-search-dropdown {
+  z-index: 50;
+  position: absolute;
+}
+
+/* Fix: focus visible accesible */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+button:focus:not(:focus-visible) { outline: none; }

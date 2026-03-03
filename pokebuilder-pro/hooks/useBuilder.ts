@@ -247,8 +247,9 @@ export function useBuilder() {
           const member: TeamMember = {
             id: typeof sug.id === "number" ? sug.id : parseInt(String(sug.id)) || Date.now(),
             nombre: sug.name,
-            tipo1: "",
-            tipo2: null,
+            tipo1: sug.tipo1 || "",
+            tipo2: sug.tipo2 || null,
+            sprite_url: sug.sprite_url || null,
             rol: sug.role,
           };
 

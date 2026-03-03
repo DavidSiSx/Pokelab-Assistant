@@ -100,7 +100,7 @@ function SuggestionCard({
 
   return (
     <div
-      className="card card-hover flex flex-col gap-3 p-4 animate-fade-in"
+      className="glass-card flex flex-col gap-3 p-4 animate-bounce-in hover:border-accent/50 transition-all"
       style={{ cursor: "default" }}
     >
       <div className="flex items-center gap-3">
@@ -311,23 +311,25 @@ export function SwapView() {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* Header */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
-          >
-            <RefreshCw size={18} style={{ color: "var(--accent)" }} />
+      <div className="flex flex-col gap-3">
+        <div className="page-header">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 rounded-lg flex items-center justify-center"
+              style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
+            >
+              <RefreshCw size={20} style={{ color: "var(--accent)" }} />
+            </div>
+            <h1
+              className="font-bold text-balance"
+              style={{ color: "var(--text-primary)", fontSize: "clamp(1.5rem,4vw,2rem)" }}
+            >
+              Cambio de Miembro
+            </h1>
           </div>
-          <h1
-            className="font-bold text-balance"
-            style={{ color: "var(--text-primary)", fontSize: "clamp(1.35rem,3vw,1.75rem)" }}
-          >
-            Swap de Miembro
-          </h1>
         </div>
         <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Selecciona un Pokemon de tu equipo y recibe sugerencias de reemplazo optimizadas con IA.
+          Selecciona un Pokémon y recibe sugerencias IA para optimizar tu equipo.
         </p>
       </div>
 
@@ -360,7 +362,7 @@ export function SwapView() {
       {/* Paste import */}
       {importMode === "paste" && (
         <div
-          className="card p-4 flex flex-col gap-3 animate-fade-in"
+          className="glass-card p-4 flex flex-col gap-3 animate-bounce-in"
         >
           <label
             className="text-xs uppercase tracking-wider font-semibold"
@@ -392,7 +394,7 @@ export function SwapView() {
 
       {/* Team slots */}
       {filledTeam.length > 0 ? (
-        <div className="card p-4 flex flex-col gap-3">
+        <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
           <div className="flex items-center justify-between">
             <span
               className="text-xs uppercase tracking-wider font-semibold"
@@ -476,7 +478,7 @@ export function SwapView() {
 
       {/* Swap config */}
       {selectedSlot !== null && activeTeam[selectedSlot] && (
-        <div className="card p-4 flex flex-col gap-3 animate-slide-up">
+        <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
           <div className="flex items-center gap-2">
             <span
               className="text-xs uppercase tracking-wider font-semibold"

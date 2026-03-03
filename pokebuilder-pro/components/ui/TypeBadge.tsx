@@ -30,9 +30,9 @@ const TYPE_CLASS: Record<string, string> = {
 };
 
 const SIZE_CLASSES = {
-  sm: "px-2 py-0.5 text-[0.6rem]",
-  md: "px-2.5 py-0.5 text-[0.7rem]",
-  lg: "px-3 py-1 text-xs",
+  sm: "px-2 py-0.5 text-[0.65rem]",
+  md: "px-3 py-1 text-[0.75rem]",
+  lg: "px-3.5 py-1.5 text-sm",
 };
 
 export function TypeBadge({ type, size = "md", className = "" }: TypeBadgeProps) {
@@ -43,7 +43,7 @@ export function TypeBadge({ type, size = "md", className = "" }: TypeBadgeProps)
     <span
       className={`
         inline-flex items-center justify-center rounded-full font-bold
-        uppercase tracking-widest leading-none
+        uppercase tracking-wider leading-none transition-all type-glow
         ${typeClass} ${SIZE_CLASSES[size]} ${className}
       `}
     >

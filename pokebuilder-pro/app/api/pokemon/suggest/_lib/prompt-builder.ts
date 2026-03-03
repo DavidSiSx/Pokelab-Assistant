@@ -25,17 +25,15 @@ function buildFormatPrompt(config: any): string {
   const format = config.format || "";
   const f = format.toLowerCase();
 
-  const isVGC     = f.includes("vgc") || (f.includes("doubles") && !f.includes("6v6"));
-  const isSingles = f.includes("singles") || f.includes("1v1") || f.includes("ou") || f.includes("smogon") || f.includes("bss") || f.includes("battle stadium singles");
-  const is6v6     = f.includes("6v6");
-  const isCobblemon = f.includes("cobblemon");
-  const isNatDex  = f.includes("national dex") || f.includes("natdex");
-  const isLC      = f.includes("little cup") || config.isLittleCup;
-  const isRandoBattle = f.includes("random");
+  const isVGC        = f.includes("vgc") || (f.includes("doubles") && !f.includes("6v6"));
+  const isSingles    = f.includes("singles") || f.includes("1v1") || f.includes("ou") || f.includes("smogon") || f.includes("bss") || f.includes("battle stadium singles");
+  const is6v6        = f.includes("6v6");
+  const isCobblemon  = f.includes("cobblemon");
+  const isNatDex     = f.includes("national dex") || f.includes("natdex");
+  const isLC         = f.includes("little cup") || config.isLittleCup;
 
   let prompt = `FORMATO: ${format}\n`;
 
-  // ── VGC / Doubles estándar ─────────────────────────────────────
   if (isVGC && !is6v6) {
     prompt += `
 REGLAS VGC/DOUBLES (4v4 en campo doble):
@@ -66,7 +64,6 @@ REGLAS VGC/DOUBLES (4v4 en campo doble):
   Optimiza su sinergia mutua — deben funcionar bien juntos desde el turno 1.`;
   }
 
-  // ── 6v6 Doubles (Cobblemon / Custom) ──────────────────────────
   if (is6v6 || (isCobblemon && f.includes("doubles"))) {
     prompt += `
 REGLAS 6v6 DOUBLES (Cobblemon/Custom):
@@ -85,7 +82,6 @@ REGLAS 6v6 DOUBLES (Cobblemon/Custom):
 - PROTECT: Obligatorio en la mayoría del equipo.`;
   }
 
-  // ── Singles / BSS / OU ────────────────────────────────────────
   if (isSingles && !is6v6) {
     prompt += `
 REGLAS SINGLES (1v1 activo):
@@ -109,7 +105,6 @@ REGLAS SINGLES (1v1 activo):
   Considera Pokémon con Sucker Punch, Bullet Punch, Mach Punch, Aqua Jet.`;
   }
 
-  // ── National Dex específico ───────────────────────────────────
   if (isNatDex) {
     prompt += `
 CONSIDERACIONES NATIONAL DEX:
@@ -119,7 +114,6 @@ CONSIDERACIONES NATIONAL DEX:
   pueden estar baneadas según las cláusulas del formato.`;
   }
 
-  // ── Little Cup ────────────────────────────────────────────────
   if (isLC) {
     prompt += `
 CONSIDERACIONES LITTLE CUP:
@@ -131,7 +125,6 @@ CONSIDERACIONES LITTLE CUP:
 - Eviolite es el item más común — boost de 50% en Def y SpD para pre-evoluciones.`;
   }
 
-  // ── Cobblemon específico ──────────────────────────────────────
   if (isCobblemon) {
     prompt += `
 CONSIDERACIONES COBBLEMON (Minecraft mod):
@@ -141,31 +134,22 @@ CONSIDERACIONES COBBLEMON (Minecraft mod):
 - Prioriza estrategias probadas en el meta competitivo oficial como base.`;
   }
 
-  // ── Cláusulas ─────────────────────────────────────────────────
   if (clauses.length > 0) {
     prompt += `\nCLÁUSULAS ACTIVAS: ${clauses.join(", ")}`;
-
-    if (clauses.some((c: string) => c.toLowerCase().includes("item clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("item clause")))
       prompt += "\n→ ITEM CLAUSE: PROHIBIDO repetir objetos en el mismo equipo.";
-    }
-    if (clauses.some((c: string) => c.toLowerCase().includes("species clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("species clause")))
       prompt += "\n→ SPECIES CLAUSE: PROHIBIDO repetir Pokémon (misma especie).";
-    }
-    if (clauses.some((c: string) => c.toLowerCase().includes("sleep clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("sleep clause")))
       prompt += "\n→ SLEEP CLAUSE: Máximo 1 Pokémon rival dormido a la vez. Evita múltiples moves de sleep.";
-    }
-    if (clauses.some((c: string) => c.toLowerCase().includes("evasion clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("evasion clause")))
       prompt += "\n→ EVASION CLAUSE: PROHIBIDO usar Double Team o Minimize.";
-    }
-    if (clauses.some((c: string) => c.toLowerCase().includes("ohko clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("ohko clause")))
       prompt += "\n→ OHKO CLAUSE: PROHIBIDO usar Fissure, Guillotine, Sheer Cold, Horn Drill.";
-    }
-    if (clauses.some((c: string) => c.toLowerCase().includes("dynamax clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("dynamax clause")))
       prompt += "\n→ DYNAMAX CLAUSE: PROHIBIDO usar Dynamax o Gigantamax en batalla.";
-    }
-    if (clauses.some((c: string) => c.toLowerCase().includes("baton pass clause"))) {
+    if (clauses.some((c: string) => c.toLowerCase().includes("baton pass clause")))
       prompt += "\n→ BATON PASS CLAUSE: PROHIBIDO usar Baton Pass con boosts de stats.";
-    }
   }
 
   return prompt;
@@ -176,7 +160,6 @@ CONSIDERACIONES COBBLEMON (Minecraft mod):
 // ─────────────────────────────────────────────────────────────────
 function buildMonotypePrompt(config: any): string {
   if (!config.isMonotype || !config.monoTypeSelected) return "";
-
   return `MODO MONOTYPE ${config.monoTypeSelected.toUpperCase()}:
   - TODOS los Pokémon del equipo DEBEN ser de tipo ${config.monoTypeSelected}.
   - El pool YA está pre-filtrado por tipo — SOLO usa Pokémon del pool.
@@ -198,7 +181,6 @@ function buildMonotypePrompt(config: any): string {
 // ─────────────────────────────────────────────────────────────────
 function buildWeatherPrompt(config: any): string {
   if (!config.preferredWeather || config.preferredWeather === "none") return "";
-
   const f = (config.format || "").toLowerCase();
   const isVGC = f.includes("vgc") || f.includes("doubles");
   const setterNote = isVGC
@@ -206,33 +188,10 @@ function buildWeatherPrompt(config: any): string {
     : "En Singles 1 setter es suficiente — no incluyas 2 setters del mismo clima.";
 
   const weatherDetails: Record<string, string> = {
-    sun: `Sol (Drought/Sunny Day):
-    - Setter: Ninetales-Alola, Torkoal, Groudon (si permitido).
-    - Abusers: Pokémon con Chlorophyll (doblan Speed), Solar Power (+SpA), o Harvest.
-    - Beneficios: Fire moves x1.5, SolarBeam sin carga, Weather Ball Fuego.
-    - Debilidades: Water x1.5 contra tu equipo, Rain teams te contrarrestan.
-    - ${setterNote}`,
-
-    rain: `Lluvia (Drizzle/Rain Dance):
-    - Setter: Pelipper, Politoed, Kyogre (si permitido).
-    - Abusers: Pokémon con Swift Swim (doblan Speed), Dry Skin (+HP), Hydration.
-    - Beneficios: Water moves x1.5, Thunder 100% precisión, Hurricane 100% precisión.
-    - Debilidades: Electric y Grass x1.5 contra tu equipo, Sun teams te contrarrestan.
-    - ${setterNote}`,
-
-    sand: `Tormenta de Arena (Sand Stream/Sandstorm):
-    - Setter: Tyranitar, Hippowdon, Excadrill.
-    - Abusers: Pokémon con Sand Rush (doblan Speed), Sand Force (+moves Tierra/Roca/Acero).
-    - Beneficios: SpD +50% para tipos Roca, daño pasivo a no-Roca/Acero/Tierra.
-    - Debilidades: Fighting y Water son comunes contra equipos de arena.
-    - ${setterNote}`,
-
-    snow: `Nevada (Snow Warning/Snowscape):
-    - Setter: Abomasnow, Ninetales-Alola, Cetitan.
-    - Abusers: Pokémon con Slush Rush (doblan Speed), Ice Body (+HP), Snow Cloak.
-    - Beneficios: Def +50% para tipos Hielo, Blizzard 100% precisión.
-    - Debilidades: Fire, Fighting y Rock son muy comunes contra equipos de nieve.
-    - ${setterNote}`,
+    sun:  `Sol (Drought/Sunny Day): Setter: Ninetales-Alola, Torkoal. Abusers: Chlorophyll, Solar Power. Beneficios: Fire x1.5, SolarBeam sin carga. ${setterNote}`,
+    rain: `Lluvia (Drizzle/Rain Dance): Setter: Pelipper, Politoed. Abusers: Swift Swim, Dry Skin. Beneficios: Water x1.5, Thunder 100%. ${setterNote}`,
+    sand: `Arena (Sand Stream): Setter: Tyranitar, Hippowdon. Abusers: Sand Rush, Sand Force. Beneficios: SpD+50% Rock. ${setterNote}`,
+    snow: `Nevada (Snow Warning): Setter: Abomasnow, Ninetales-Alola. Abusers: Slush Rush, Ice Body. Beneficios: Def+50% Ice, Blizzard 100%. ${setterNote}`,
   };
 
   return `CLIMA PREFERIDO: ${weatherDetails[config.preferredWeather] || config.preferredWeather}`;
@@ -243,7 +202,6 @@ function buildWeatherPrompt(config: any): string {
 // ─────────────────────────────────────────────────────────────────
 function buildTerrainPrompt(config: any): string {
   if (!config.preferredTerrain || config.preferredTerrain === "none") return "";
-
   const f = (config.format || "").toLowerCase();
   const isVGC = f.includes("vgc") || f.includes("doubles");
   const setterNote = isVGC
@@ -251,33 +209,10 @@ function buildTerrainPrompt(config: any): string {
     : "En Singles 1 setter es suficiente.";
 
   const terrainDetails: Record<string, string> = {
-    electric: `Terreno Eléctrico (Electric Surge):
-    - Setter: Tapu Koko, Pincurchin, Raichu-Alola con Rising Voltage.
-    - Beneficios: Electric moves x1.3 en tierra, previene sleep en tierra.
-    - Abusers: Surge Surfer (doblan Speed), cualquier Electric abuser.
-    - Sinergia: Excelente con Pokémon Ground-immune para aprovechar Discharge sin riesgo.
-    - ${setterNote}`,
-
-    grassy: `Terreno Herboso (Grassy Surge):
-    - Setter: Tapu Bulu, Rillaboom (con Grassy Surge ability).
-    - Beneficios: Grass moves x1.3, recupera 1/16 HP por turno en tierra.
-    - Debilita: Earthquake, Bulldoze y Magnitude a x0.5 — excelente contra Ground.
-    - Abusers: Grassy Pelt (boost de Def), cualquier Grass sweeper.
-    - ${setterNote}`,
-
-    psychic: `Terreno Psíquico (Psychic Surge):
-    - Setter: Tapu Lele, Indeedee (con Psychic Surge).
-    - Beneficios: Psychic moves x1.3 en tierra, bloquea moves de prioridad en tierra.
-    - IMPORTANTE: Bloquear prioridad es enorme — neutraliza Fake Out, Sucker Punch, Bullet Punch.
-    - En VGC: Indeedee es top tier por Follow Me + Psychic Surge combinados.
-    - ${setterNote}`,
-
-    misty: `Terreno Brumoso (Misty Surge):
-    - Setter: Tapu Fini, Sylveon con Pixilate.
-    - Beneficios: Previene status conditions en tierra, Dragon moves x0.5.
-    - Ideal contra equipos que dependen de Toxic, Thunder Wave o Will-O-Wisp.
-    - Abusers: Misty Retreat (boost SpD al cambiar), Fairy sweepers.
-    - ${setterNote}`,
+    electric: `Eléctrico (Electric Surge): Setter: Tapu Koko, Pincurchin. Electric x1.3, previene sleep. ${setterNote}`,
+    grassy:   `Herboso (Grassy Surge): Setter: Tapu Bulu, Rillaboom. Grass x1.3, HP+1/16, Earthquake x0.5. ${setterNote}`,
+    psychic:  `Psíquico (Psychic Surge): Setter: Tapu Lele, Indeedee. Psychic x1.3, bloquea prioridad. ${setterNote}`,
+    misty:    `Brumoso (Misty Surge): Setter: Tapu Fini. Previene status, Dragon x0.5. ${setterNote}`,
   };
 
   return `TERRENO PREFERIDO: ${terrainDetails[config.preferredTerrain] || config.preferredTerrain}`;
@@ -288,32 +223,19 @@ function buildTerrainPrompt(config: any): string {
 // ─────────────────────────────────────────────────────────────────
 function buildSpeedControlPrompt(config: any): string {
   let prompt = "";
-
   if (config.preferTrickRoom) {
     prompt += `TRICK ROOM ACTIVADO:
-    - DEBES incluir 1-2 setters de Trick Room (Pokémon que aprenda Trick Room).
-    - Setters ideales: Porygon2, Dusclops, Oranguru, Hatterene, Indeedee, Slowbro.
-    - Sweepers de TR ideales: Marowak-Alola, Conkeldurr, Reuniclus, Rhyperior, 
-      Torkoal, Ursaluna, Stakataka, Abomasnow.
-    - NATURE PARA SWEEPERS TR: Brave (Atk) o Quiet (SpA) — ambas bajan Speed.
-    - IVS: 0 Speed IVs OBLIGATORIO para todos los sweepers de TR.
-    - BASE SPEED IDEAL: ≤ 50 para sweepers. El más lento va primero bajo TR.
-    - SETTER SPEED: El setter puede tener Speed normal para ganar en speed ties.
-    - EN VGC: Considera Fake Out + TR como apertura estándar (Fake Out cubre al setter).
-    - COBERTURA: Asegura que tus sweepers de TR tengan cobertura amplia de tipos.`;
+    - DEBES incluir 1-2 setters de Trick Room (Porygon2, Dusclops, Oranguru, Hatterene, Indeedee, Slowbro).
+    - Sweepers TR ideales: Marowak-Alola, Conkeldurr, Reuniclus, Rhyperior, Torkoal, Ursaluna, Stakataka.
+    - NATURE SWEEPERS TR: Brave (Atk) o Quiet (SpA). IVS: 0 Speed IVs OBLIGATORIO.
+    - BASE SPEED IDEAL: ≤ 50 para sweepers. EN VGC: Fake Out + TR como apertura.`;
   }
-
   if (config.preferTailwind) {
     prompt += `\nTAILWIND ACTIVADO:
-    - DEBES incluir 1-2 setters de Tailwind (Pokémon que aprenda Tailwind).
-    - Setters ideales: Whimsicott, Tornadus, Talonflame, Suicune, Pelipper, Murkrow.
-    - Tailwind dura 4 turnos — optimiza los abusers para hacer daño en esa ventana.
-    - ABUSERS IDEALES: Pokémon con base Speed 60-90 que con Tailwind outspeedean
-      a base 130+ del rival. Ejemplo: base 80 con Tailwind = 160 efectivo.
-    - Considera Pokémon con moves de alta potencia pero Speed media — Tailwind los activa.
-    - EN VGC: Whimsicott es top tier por Prankster + Tailwind (prioridad).`;
+    - DEBES incluir 1-2 setters de Tailwind (Whimsicott, Tornadus, Talonflame, Pelipper, Murkrow).
+    - Tailwind dura 4 turnos. Abusers ideales: base Speed 60-90.
+    - EN VGC: Whimsicott top tier por Prankster + Tailwind (prioridad).`;
   }
-
   return prompt;
 }
 
@@ -349,7 +271,6 @@ function buildArchetypePrompt(config: any): string {
     - Incluye al menos 1 Pokémon con Taunt para evitar que el rival también stallée.
     - Items: Leftovers, Rocky Helmet, Eviolite, Heavy-Duty Boots para pivots.`,
   };
-
   return archetypes[config.teamArchetype] || "";
 }
 
@@ -364,7 +285,6 @@ function buildMechanicsPrompt(config: any): string {
       .filter(([, stone]) => stone && stone !== "None (no stone needed)")
       .map(([poke, stone]) => `${poke}→${stone}`)
       .join(", ");
-
     prompt += `MEGA EVOLUTION ACTIVADA:
     - Asigna Mega Stone a MÁXIMO 1 miembro del equipo.
     - Candidatos marcados [MEGA: X] tienen Mega confirmada — usa esa stone exacta.
@@ -431,45 +351,32 @@ function buildMechanicsPrompt(config: any): string {
 function buildProhibitionsPrompt(config: any): string {
   const prohibitions: string[] = [];
 
-  if (!config.enableMega) {
+  if (!config.enableMega)
     prohibitions.push("PROHIBIDO asignar Mega Stones. Ningún item puede ser una Mega Stone (terminar en 'ite' siendo una stone).");
-  }
-  if (!config.enableZMoves) {
+  if (!config.enableZMoves)
     prohibitions.push("PROHIBIDO asignar Z-Crystals. Ningún item puede terminar en 'ium Z' o '-Z'.");
-  }
-  if (!config.enableTera) {
+  if (!config.enableTera)
     prohibitions.push("PROHIBIDO incluir campo 'teraType' en ningún build.");
-  }
-  if (!config.enableDynamax && !config.enableGmax) {
+  if (!config.enableDynamax && !config.enableGmax)
     prohibitions.push("PROHIBIDO mencionar Dynamax, Gigantamax, Max Moves o G-Max moves.");
-  }
-  if (!config.allowLegendaries) {
+  if (!config.allowLegendaries)
     prohibitions.push(`PROHIBIDO incluir Legendarios. Lista parcial: ${LEGENDARY_LIST.slice(0, 15).join(", ")} y otros legendarios conocidos.`);
-  }
-  if (!config.allowMythicals) {
+  if (!config.allowMythicals)
     prohibitions.push(`PROHIBIDO incluir Mythicals/Singulares: ${MYTHICAL_LIST.join(", ")}.`);
-  }
-  if (!config.allowParadox) {
+  if (!config.allowParadox)
     prohibitions.push(`PROHIBIDO incluir Pokémon Paradoja: ${PARADOX_LIST.join(", ")}.`);
-  }
-  if (!config.allowUB) {
+  if (!config.allowUB)
     prohibitions.push(`PROHIBIDO incluir Ultra Bestias: ${UB_LIST.join(", ")}.`);
-  }
-  if (!config.includeAlola) {
+  if (!config.includeAlola)
     prohibitions.push("PROHIBIDO incluir formas de Alola (nombre-alola).");
-  }
-  if (!config.includeGalar) {
+  if (!config.includeGalar)
     prohibitions.push("PROHIBIDO incluir formas de Galar (nombre-galar).");
-  }
-  if (!config.includeHisui) {
+  if (!config.includeHisui)
     prohibitions.push("PROHIBIDO incluir formas de Hisui (nombre-hisui).");
-  }
-  if (!config.includePaldea) {
+  if (!config.includePaldea)
     prohibitions.push("PROHIBIDO incluir formas de Paldea (nombre-paldea).");
-  }
-  if (config.isLittleCup) {
-    prohibitions.push("FORMATO LITTLE CUP: SOLO pre-evoluciones nivel 5. Sin stones evolutivas. Sin Pokémon que no sean pre-evoluciones.");
-  }
+  if (config.isLittleCup)
+    prohibitions.push("FORMATO LITTLE CUP: SOLO pre-evoluciones nivel 5. Sin stones evolutivas.");
 
   if (prohibitions.length === 0) return "";
 
@@ -535,7 +442,7 @@ export function buildCandidateString(candidates: any[], config: any): string {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// ITEM CLAUSE RULE — regla de items para el prompt
+// ITEM CLAUSE RULE
 // ─────────────────────────────────────────────────────────────────
 export function buildItemClauseRule(config: any): string {
   const hasItemClause = config.clauses?.some(
@@ -559,7 +466,7 @@ export function buildSelectionPrompt(
   modeModifiers: string,
   experiencePrompt: string,
   itemClauseRule: string,
-  comboPrompt: string = "", // ← nuevo parámetro
+  comboPrompt: string = "",
 ): string {
   return `
 Eres el Analista Táctico Principal de un equipo campeón mundial de Pokémon.
@@ -602,9 +509,9 @@ DEVUELVE SOLO JSON VÁLIDO (sin markdown, sin texto extra):
 }
 
 // ─────────────────────────────────────────────────────────────────
-// REPORT PROMPT — segunda llamada a Gemini
+// REPORT PROMPT PARTE 1 — análisis general (~600-900 tokens, no trunca)
 // ─────────────────────────────────────────────────────────────────
-export function buildReportPrompt(
+export function buildReportPromptPart1(
   confirmedTeam: any[],
   buildsJson: string,
   config: any,
@@ -615,47 +522,112 @@ export function buildReportPrompt(
     const types = p.tipo2 ? `${p.tipo1}/${p.tipo2}` : (p.tipo1 || "Normal");
     return `- ${p.nombre} (${types})`;
   }).join("\n");
-
+  const allTypes = [...new Set(confirmedTeam.flatMap((p: any) => [p.tipo1, p.tipo2].filter(Boolean)))];
   const f = (config.format || "").toLowerCase();
   const isVGC     = f.includes("vgc") || f.includes("doubles");
   const isSingles = f.includes("singles") || f.includes("ou") || f.includes("smogon");
 
-  return `
-Eres el Analista Táctico Principal de un equipo campeón mundial de Pokémon.
+  return `Eres el Analista Táctico Principal de un equipo campeón mundial de Pokémon.
 ${modeModifiers}
-NIVEL DE ANÁLISIS: ${experiencePrompt}
+NIVEL: ${experiencePrompt}
 
-EQUIPO FINAL CONFIRMADO (EXACTAMENTE ESTOS ${confirmedTeam.length} POKÉMON):
+EQUIPO (${confirmedTeam.length} Pokémon):
 ${teamString}
+TIPOS DEL EQUIPO: ${allTypes.join(", ")}
 
-BUILDS ASIGNADAS:
+BUILDS:
 ${buildsJson}
 
-REGLAS ABSOLUTAS DEL ANÁLISIS:
-- SOLO menciona los Pokémon listados arriba. PROHIBIDO mencionar otros.
-- Si es Monotype: indica si depende de un solo eje de daño (físico/especial).
-  Si hay dependencia de un eje, sugiere qué tipo de Pokémon (rol/tipo de ataque)
-  mejoraría el equipo — aunque sea de nicho.
-${isVGC ? `- Evalúa la sinergia de leads (primeros 2 Pokémon), cobertura de spread moves,
-  y si la redundancia de setters de clima/terreno es intencional y tácticamente útil.
-  Considera si Protect está bien distribuido en el equipo.` : ""}
-${isSingles ? `- Evalúa si hay hazard control adecuado (setter + remover).
-  Verifica si hay pivots suficientes y stallbreakers si el meta lo requiere.` : ""}
+REGLAS:
+- SOLO los Pokémon listados. PROHIBIDO mencionar otros.
+- Movimientos/items/habilidades siempre en inglés original.
+${isVGC ? "- Evalúa sinergia de leads (primeros 2), spread moves y distribución de Protect." : ""}
+${isSingles ? "- Evalúa hazard control (setter+remover) y pivots." : ""}
 
-DEVUELVE SOLO JSON VÁLIDO:
+DEVUELVE SOLO JSON VÁLIDO — sin markdown, sin texto extra:
 {
-  "estrategia": "descripción táctica detallada del equipo, su win condition y cómo jugar los primeros turnos",
-  "ventajas": ["ventaja competitiva concreta 1", "ventaja 2", "ventaja 3"],
-  "debilidades": ["debilidad o amenaza específica 1", "debilidad 2"],
-  "leads": [
+  "teamComposition": "Arquetipo, win condition y primeros turnos. Máx 3 frases.",
+  "typesCoverage": "Tipos ofensivos cubiertos y huecos. Máx 2 frases.",
+  "speedControl": "Control de velocidad y matchups clave. Máx 2 frases.",
+  "synergySummary": "Sinergias clave entre los miembros. Máx 2 frases.",
+  "strengths": ["Fortaleza concreta 1", "Fortaleza concreta 2", "Fortaleza concreta 3"],
+  "weaknesses": ["Debilidad concreta 1 (ej: Triple debilidad Tierra)", "Debilidad 2"],
+  "recommendation": "Consejo táctico final. Máx 2 frases.",
+  "typeChart": {
+    "teamWeaknesses":  ["Fuego x3", "Tierra x2"],
+    "teamResistances": ["Normal x4", "Veneno x3"],
+    "teamImmunities":  ["Eléctrico (Levitate en X)", "Tierra (Volador x2)"]
+  }
+}`.trim();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// REPORT PROMPT PARTE 2 — análisis individual (~800-1200 tokens, no trunca)
+// ─────────────────────────────────────────────────────────────────
+export function buildReportPromptPart2(
+  confirmedTeam: any[],
+  buildsJson: string,
+  config: any,
+  experiencePrompt: string,
+): string {
+  const teamNames  = confirmedTeam.map((p: any) => p.nombre).join(", ");
+  const teamString = confirmedTeam.map((p: any) => {
+    const types = p.tipo2 ? `${p.tipo1}/${p.tipo2}` : (p.tipo1 || "Normal");
+    return `- ${p.nombre} (${types})`;
+  }).join("\n");
+
+  return `Eres el Analista Táctico Principal de un equipo campeón mundial de Pokémon.
+NIVEL: ${experiencePrompt}
+
+EQUIPO (${confirmedTeam.length} Pokémon):
+${teamString}
+
+BUILDS:
+${buildsJson}
+
+REGLAS:
+- SOLO analiza: ${teamNames}
+- Counters: Pokémon/tipos concretos del meta que lo amenazan directamente.
+- Threatens: tipos/Pokémon que este Pokémon puede KO con sus ataques.
+- SynergyWith: SOLO compañeros DE ESTE EQUIPO. Máx 2 por Pokémon.
+- Movimientos/items/habilidades en inglés. Máx 3 items por lista.
+
+DEVUELVE SOLO JSON VÁLIDO — sin markdown, sin texto extra:
+{
+  "perPokemon": [
     {
-      "pokemon": "nombre exacto del Pokémon",
-      "condicion_uso": "cuándo y por qué usarlo como lead o apertura",
-      "condicion_cambio": "cuándo hacer pivot, cambio o no usarlo"
+      "name": "Nombre exacto como en el equipo",
+      "role": "Rol: Setup Sweeper / Pivot / TR Setter / Hazard Setter / Wall / Redirector / Wallbreaker / etc.",
+      "counters": [
+        "Pokémon meta concreto (ej: Landorus-T con Earthquake OHKO)",
+        "Tipo o core que lo neutraliza"
+      ],
+      "threatens": [
+        "Tipo/Pokémon que puede KO con STAB principal",
+        "Matchup favorable del meta"
+      ],
+      "synergyWith": [
+        "NombreCompañero - razón de sinergia táctica",
+        "NombreCompañero2 - interacción específica"
+      ]
     }
   ]
 }`.trim();
 }
+
+// ─────────────────────────────────────────────────────────────────
+// REPORT PROMPT legacy — delega a Part1 para compatibilidad
+// ─────────────────────────────────────────────────────────────────
+export function buildReportPrompt(
+  confirmedTeam: any[],
+  buildsJson: string,
+  config: any,
+  modeModifiers: string,
+  experiencePrompt: string,
+): string {
+  return buildReportPromptPart1(confirmedTeam, buildsJson, config, modeModifiers, experiencePrompt);
+}
+
 // ─────────────────────────────────────────────────────────────────
 // COMBO PROMPT — informa a Gemini los combos detectados
 // ─────────────────────────────────────────────────────────────────
@@ -669,7 +641,7 @@ export function buildComboPrompt(
     "SINERGIAS DETECTADAS EN EL POOL (considera estas interacciones al armar el equipo):",
   ];
 
-  for (const combo of detectedCombos.slice(0, 5)) { // máx 5 combos para no saturar el prompt
+  for (const combo of detectedCombos.slice(0, 5)) {
     lines.push(`\n▶ ${combo.name} [${combo.viability}]`);
     lines.push(`  Partners clave: ${combo.pokemon.join(", ")}`);
     lines.push(`  Mecánica: ${combo.mechanic.slice(0, 150)}...`);

@@ -16,16 +16,16 @@ export interface TeamMember {
 }
 
 export interface Build {
-  item: string;
-  ability: string;
-  nature: string;
-  moves: string[];
-  ev_hp: number;
-  ev_atk: number;
-  ev_def: number;
-  ev_spa: number;
-  ev_spd: number;
-  ev_spe: number;
+  item?: string;
+  ability?: string;
+  nature?: string;
+  moves?: string[];
+  ev_hp?: number;
+  ev_atk?: number;
+  ev_def?: number;
+  ev_spa?: number;
+  ev_spd?: number;
+  ev_spe?: number;
   iv_atk?: number;
   iv_spe?: number;
   tera_type?: string;
@@ -33,6 +33,10 @@ export interface Build {
   is_gmax?: boolean;
   is_dynamax?: boolean;
   z_move?: string;
+  // custom iv spread text (e.g. "31/31/31/0/31/31")
+  ivSpread?: string;
+  // optionally included by AI endpoints for explanation
+  reasoning?: string;
 }
 
 export interface PokemonCandidate {

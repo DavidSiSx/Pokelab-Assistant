@@ -1,14 +1,11 @@
 /**
  * ARCHIVO: app/api/pokemon/suggest/_lib/ai-client.ts
- * Cliente de IA con estrategia de fallback multi-key
  *
- * Orden de intentos (6 total):
- * 1. Gemini KEY_1
- * 2. Gemini KEY_2
- * 3. OpenRouter (Nous-Hermes-3-Sonnet)
- * 4. OpenRouter (Meta-Llama-3-8B)
- * 5. OpenRouter (Mistral-7B)
- * 6. OpenRouter (Llama-2-7B-Chat)
+ * Fixes aplicados:
+ * - Gemini: gemini-2.0-flash → gemini-2.5-flash (único con quota activa)
+ * - OpenRouter: modelos actualizados según los realmente disponibles en la cuenta
+ * - maxOutputTokens: 2048 → 8192 (evita JSON truncado)
+ * - parseAIResponse: robusto, intenta recuperar JSON truncado en 3 pasos
  */
 
 import type { AISelectionResponse, AIReportResponse, AIError } from "./types";
@@ -23,14 +20,16 @@ interface OpenRouterResponse {
   error?: { message: string };
 }
 
-const GEMINI_ENDPOINT    = "https://generativelanguage.googleapis.com/v1beta/models";
+const GEMINI_ENDPOINT     = "https://generativelanguage.googleapis.com/v1beta/models";
 const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
+// ✅ Modelos confirmados disponibles en tu cuenta OpenRouter
 const OPENROUTER_MODELS = [
-  "nous-hermes-3-sonnet:free",
-  "meta-llama/llama-3-8b-instruct:free",
-  "mistralai/mistral-7b-instruct:free",
-  "meta-llama/llama-2-7b-chat:free",
+  "qwen/qwen3-coder:free",
+  "mistralai/mistral-small-3.1-24b-instruct:free",
+  "openai/gpt-oss-120b:free",
+  "openai/gpt-oss-20b:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
 ];
 
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -48,28 +47,82 @@ function checkRateLimit(key: string): boolean {
   return true;
 }
 
+// ─────────────────────────────────────────────────────────────────
+// PARSER ROBUSTO — 3 niveles de recuperación
+// ─────────────────────────────────────────────────────────────────
 function parseAIResponse<T>(raw: string): T {
+  // Paso 1: limpiar markdown
+  let cleaned = raw
+    .replace(/^```(?:json)?\s*/im, "")
+    .replace(/\s*```\s*$/m, "")
+    .trim();
+
+  // Paso 2: parse directo
   try {
-    const cleaned = raw
-      .replace(/^```(?:json)?\n?/, "")
-      .replace(/\n?```$/, "")
-      .trim();
     return JSON.parse(cleaned) as T;
-  } catch (err) {
-    throw {
-      code: "PARSE_ERROR",
-      message: `Failed to parse AI response: ${err instanceof Error ? err.message : "Unknown error"}`,
-      details: { raw: raw.substring(0, 200) },
-    };
-  }
+  } catch (_) {}
+
+  // Paso 3: extraer primer JSON completo por balance de llaves
+  try {
+    const start = cleaned.indexOf("{");
+    if (start !== -1) {
+      let depth = 0, inString = false, escape = false, end = -1;
+      for (let i = start; i < cleaned.length; i++) {
+        const ch = cleaned[i];
+        if (escape)                  { escape = false; continue; }
+        if (ch === "\\" && inString) { escape = true;  continue; }
+        if (ch === '"')              { inString = !inString; continue; }
+        if (inString)                continue;
+        if (ch === "{") depth++;
+        if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
+      }
+      if (end !== -1) return JSON.parse(cleaned.slice(start, end + 1)) as T;
+    }
+  } catch (_) {}
+
+  // Paso 4: JSON truncado — cerrar llaves/corchetes pendientes
+  try {
+    const start = cleaned.indexOf("{");
+    if (start !== -1) {
+      let fragment = cleaned.slice(start);
+      let braces = 0, brackets = 0, inStr = false, esc = false;
+      for (const ch of fragment) {
+        if (esc)               { esc = false; continue; }
+        if (ch === "\\" && inStr) { esc = true; continue; }
+        if (ch === '"')        { inStr = !inStr; continue; }
+        if (inStr)             continue;
+        if (ch === "{") braces++;
+        if (ch === "}") braces--;
+        if (ch === "[") brackets++;
+        if (ch === "]") brackets--;
+      }
+      // Eliminar propiedad o coma incompleta al final
+      fragment = fragment
+        .replace(/,\s*"[^"]*"\s*:\s*[^,{[\]}"]*$/, "")
+        .replace(/,\s*$/, "");
+      fragment += "]".repeat(Math.max(0, brackets));
+      fragment += "}".repeat(Math.max(0, braces));
+      return JSON.parse(fragment) as T;
+    }
+  } catch (_) {}
+
+  throw {
+    code:    "PARSE_ERROR",
+    message: "Failed to parse AI response: JSON malformed or truncated beyond recovery",
+    details: { raw: raw.substring(0, 300) },
+  };
 }
 
+// ─────────────────────────────────────────────────────────────────
+// GEMINI
+// ─────────────────────────────────────────────────────────────────
 async function callGemini(
   prompt: string,
   apiKey: string,
   attemptNum: number
 ): Promise<string> {
-  const model = "gemini-2.0-flash";
+  // ✅ gemini-2.5-flash — tiene quota activa (gemini-2.0-flash tiene 0/0)
+  const model = "gemini-2.5-flash";
   const url   = `${GEMINI_ENDPOINT}/${model}:generateContent?key=${apiKey}`;
 
   const payload = {
@@ -78,7 +131,7 @@ async function callGemini(
       temperature:     0.7,
       topK:            40,
       topP:            0.95,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 8192,
     },
   };
 
@@ -109,6 +162,9 @@ async function callGemini(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// OPENROUTER
+// ─────────────────────────────────────────────────────────────────
 async function callOpenRouter(
   prompt: string,
   model: string,
@@ -121,17 +177,17 @@ async function callOpenRouter(
 
   const payload = {
     model,
-    messages:   [{ role: "user", content: prompt }],
+    messages:    [{ role: "user", content: prompt }],
     temperature: 0.7,
     top_p:       0.95,
-    max_tokens:  2048,
+    max_tokens:  8192,
   };
 
   try {
     const response = await fetch(OPENROUTER_ENDPOINT, {
       method:  "POST",
       headers: {
-        Authorization: `Bearer ${apiKey}`,
+        Authorization:  `Bearer ${apiKey}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://pokebuilder.pro",
         "X-Title":      "PokeBuilder Pro v2.0",
@@ -159,6 +215,9 @@ async function callOpenRouter(
   }
 }
 
+// ─────────────────────────────────────────────────────────────────
+// FALLBACK CHAIN
+// ─────────────────────────────────────────────────────────────────
 export async function generateWithFallback(
   prompt: string,
   rateLimitKey?: string
@@ -174,16 +233,16 @@ export async function generateWithFallback(
   const key1 = process.env.GOOGLE_AI_KEY_1;
   const key2 = process.env.GOOGLE_AI_KEY_2;
 
-  const attempts = [
+  const attempts: Array<() => Promise<string>> = [
     key1
-      ? async () => callGemini(prompt, key1, 1)
-      : async () => { throw { code: "GEMINI_ERROR", message: "Missing GOOGLE_AI_KEY_1", attemptNum: 1 }; },
+      ? () => callGemini(prompt, key1, 1)
+      : () => Promise.reject({ code: "GEMINI_ERROR", message: "Missing GOOGLE_AI_KEY_1", attemptNum: 1 }),
     key2
-      ? async () => callGemini(prompt, key2, 2)
-      : async () => { throw { code: "GEMINI_ERROR", message: "Missing GOOGLE_AI_KEY_2", attemptNum: 2 }; },
-    ...OPENROUTER_MODELS.map((model, idx) => async () =>
-      callOpenRouter(prompt, model, 3 + idx)
-    ) as Array<() => Promise<string>>,
+      ? () => callGemini(prompt, key2, 2)
+      : () => Promise.reject({ code: "GEMINI_ERROR", message: "Missing GOOGLE_AI_KEY_2", attemptNum: 2 }),
+    ...OPENROUTER_MODELS.map((model, idx) =>
+      () => callOpenRouter(prompt, model, 3 + idx)
+    ),
   ];
 
   let lastError: unknown;
@@ -203,11 +262,11 @@ export async function generateWithFallback(
   }
 
   const error: AIError = new Error(
-    "All AI generation attempts failed after 6 tries"
+    `All AI generation attempts failed after ${attempts.length} tries`
   ) as AIError;
-  error.code            = "GEMINI_ERROR";
-  error.details         = { lastError, totalAttempts: attempts.length };
-  error.attemptedKeys   = attempts.length;
+  error.code          = "GEMINI_ERROR";
+  error.details       = { lastError, totalAttempts: attempts.length };
+  error.attemptedKeys = attempts.length;
   throw error;
 }
 

@@ -188,36 +188,11 @@
 }
 
 /* ══════════════════════════════════════════════════════
-   BASE STYLES
+   THEME APPLICATION
 ══════════════════════════════════════════════════════ */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
 body {
   background-color: var(--bg-base);
   color: var(--text-primary);
-  font-family: var(--font-sans, Arial, sans-serif);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  min-height: 100dvh;
-}
-
-/* ── Scrollbar ───────────────────────────────────────── */
-::-webkit-scrollbar         { width: 6px; height: 6px; }
-::-webkit-scrollbar-track   { background: var(--bg-surface); }
-::-webkit-scrollbar-thumb   { background: var(--border); border-radius: 99px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-::selection {
-  background: var(--accent-glow);
-  color: var(--accent-light);
 }
 
 /* ══════════════════════════════════════════════════════

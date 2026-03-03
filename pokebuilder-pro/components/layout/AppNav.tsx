@@ -21,47 +21,56 @@ export function AppNav() {
 
   return (
     <>
-      {/* ── Desktop Sidebar / Top Nav ───────────────────────── */}
+      {/* Desktop Top Nav */}
       <header
-        className="hidden md:flex items-center justify-between px-6 py-3 sticky top-0 z-30"
+        className="hidden md:flex items-center justify-between px-6 h-14 sticky top-0 z-30"
         style={{
           background: "var(--bg-surface)",
           borderBottom: "1px solid var(--border)",
-          backdropFilter: "blur(12px)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
         }}
       >
         {/* Logo */}
         <Link
           href="/"
-          className="flex items-center gap-2 font-bold text-base select-none"
+          className="flex items-center gap-2.5 font-bold text-sm select-none"
           style={{ color: "var(--text-primary)", textDecoration: "none" }}
         >
           <span
-            className="w-7 h-7 rounded-full flex items-center justify-center text-sm font-black"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black"
             style={{ background: "var(--accent)", color: "#fff" }}
           >
             P
           </span>
-          <span style={{ color: "var(--text-primary)" }}>Pokelab</span>
-          <span style={{ color: "var(--accent)" }}>AI</span>
+          <span>
+            <span style={{ color: "var(--text-primary)" }}>Pokelab</span>
+            {" "}
+            <span
+              className="text-xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
+              style={{ background: "var(--accent-glow)", color: "var(--accent)" }}
+            >
+              AI
+            </span>
+          </span>
         </Link>
 
         {/* Nav links */}
-        <nav className="flex items-center gap-1" aria-label="Navegación principal">
+        <nav className="flex items-center gap-1" aria-label="Navegacion principal">
           {NAV_ITEMS.map(({ href, label, Icon }) => {
             const active = pathname.startsWith(href);
             return (
               <Link
                 key={href}
                 href={href}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-[0.8rem] font-medium transition-all duration-150"
                 style={{
                   color: active ? "var(--accent)" : "var(--text-secondary)",
                   background: active ? "var(--accent-glow)" : "transparent",
                   textDecoration: "none",
                 }}
               >
-                <Icon size={15} />
+                <Icon size={15} strokeWidth={active ? 2.5 : 2} />
                 {label}
               </Link>
             );
@@ -69,14 +78,18 @@ export function AppNav() {
         </nav>
 
         {/* Right side */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <ThemeSwitcher compact />
           {!loading && (
             user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <span
-                  className="text-xs hidden lg:flex items-center gap-1"
-                  style={{ color: "var(--text-muted)" }}
+                  className="text-xs hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                  style={{
+                    color: "var(--text-secondary)",
+                    background: "var(--bg-card)",
+                    border: "1px solid var(--border)",
+                  }}
                 >
                   <User size={12} />
                   {user.email?.split("@")[0]}
@@ -91,7 +104,10 @@ export function AppNav() {
                 </button>
               </div>
             ) : (
-              <Link href="/login" className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5">
+              <Link
+                href="/login"
+                className="btn-primary py-2 px-4 text-xs flex items-center gap-1.5"
+              >
                 <LogIn size={13} />
                 Ingresar
               </Link>
@@ -100,10 +116,10 @@ export function AppNav() {
         </div>
       </header>
 
-      {/* ── Mobile Bottom Tab Bar ────────────────────────────── */}
+      {/* Mobile Bottom Tab Bar */}
       <nav
         className="bottom-nav md:hidden"
-        aria-label="Navegación móvil"
+        aria-label="Navegacion movil"
       >
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = pathname.startsWith(href);
@@ -113,8 +129,8 @@ export function AppNav() {
               href={href}
               className={`bottom-nav-item ${active ? "active" : ""}`}
             >
-              <Icon size={20} />
-              {label}
+              <Icon size={18} strokeWidth={active ? 2.5 : 2} />
+              <span>{label}</span>
             </Link>
           );
         })}
@@ -123,15 +139,15 @@ export function AppNav() {
             <button
               onClick={signOut}
               className="bottom-nav-item"
-              aria-label="Cerrar sesión"
+              aria-label="Cerrar sesion"
             >
-              <LogOut size={20} />
-              Salir
+              <LogOut size={18} />
+              <span>Salir</span>
             </button>
           ) : (
             <Link href="/login" className="bottom-nav-item">
-              <LogIn size={20} />
-              Login
+              <LogIn size={18} />
+              <span>Login</span>
             </Link>
           )
         )}

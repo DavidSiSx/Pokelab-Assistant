@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createUserClient } from "@/lib/supabase/server";
 import type { SavedTeam } from "@/types/pokemon";
 
 // ── DELETE — remove a team by id ─────────────────────────────────────────────
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const { client: supabase } = createUserClient(req);
 
   const {
     data: { user },
@@ -44,7 +44,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
-  const supabase = createServerClient();
+  const { client: supabase } = createUserClient(req);
 
   const {
     data: { user },

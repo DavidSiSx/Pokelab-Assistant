@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createUserClient } from "@/lib/supabase/server";
 import type { Theme } from "@/providers/ThemeProvider";
 
 const VALID_THEMES: Theme[] = ["pokeball", "midnight", "forest", "plasma", "ultra"];
 
 // ── GET — get user preferences ────────────────────────────────────────────────
-export async function GET() {
-  const supabase = createServerClient();
+export async function GET(req: NextRequest) {
+  const { client: supabase } = createUserClient(req);
 
   const {
     data: { user },
@@ -31,7 +31,7 @@ export async function GET() {
 
 // ── PATCH — upsert user preferences ──────────────────────────────────────────
 export async function PATCH(req: NextRequest) {
-  const supabase = createServerClient();
+  const { client: supabase } = createUserClient(req);
 
   const {
     data: { user },

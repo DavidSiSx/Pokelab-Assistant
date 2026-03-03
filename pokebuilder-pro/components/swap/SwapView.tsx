@@ -5,11 +5,14 @@ import { useSwap, type SwapSuggestion } from "@/hooks/useSwap";
 import { useBuilder } from "@/hooks/useBuilder";
 import type { TeamMember, Build } from "@/types/pokemon";
 import { PokemonSprite } from "@/components/pokemon/PokemonSprite";
-import { TypeBadge } from "@/components/ui/TypeBadge";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { RefreshCw, X, Zap, Shield, Swords, ArrowRight } from "lucide-react";
+import { PokeballPattern, Pokeball } from "@/components/ui/PokeballBg";
+import {
+  RefreshCw, ArrowRight, ChevronDown, ChevronUp,
+  Swords,
+} from "lucide-react";
 
-// ── Showdown paste parser ─────────────────────────────────────────────────
+/* ── Showdown paste parser ───────────────────────── */
 function parseShowdownPaste(paste: string): { team: TeamMember[]; builds: Record<string, Build> } {
   const team: TeamMember[] = [];
   const builds: Record<string, Build> = {};
@@ -19,7 +22,6 @@ function parseShowdownPaste(paste: string): { team: TeamMember[]; builds: Record
     const lines = block.trim().split("\n");
     if (!lines[0]) return;
 
-    // First line: "Name @ Item" or just "Name"
     const firstLine = lines[0].trim();
     const atSplit = firstLine.split(" @ ");
     const rawName = atSplit[0].replace(/\s*\(.*?\)\s*/g, "").trim();
@@ -58,29 +60,14 @@ function parseShowdownPaste(paste: string): { team: TeamMember[]; builds: Record
     }
 
     if (!rawName) return;
-
     const id = Date.now() + idx;
-    const member: TeamMember = {
-      id,
-      nombre: rawName,
-      tipo1: "",
-      tipo2: null,
-    };
-
+    const member: TeamMember = { id, nombre: rawName, tipo1: "", tipo2: null };
     const build: Build = {
-      item,
-      ability,
-      nature,
-      moves,
-      ev_hp: evHp,
-      ev_atk: evAtk,
-      ev_def: evDef,
-      ev_spa: evSpa,
-      ev_spd: evSpd,
-      ev_spe: evSpe,
+      item, ability, nature, moves,
+      ev_hp: evHp, ev_atk: evAtk, ev_def: evDef,
+      ev_spa: evSpa, ev_spd: evSpd, ev_spe: evSpe,
       tera_type: teraType || undefined,
     };
-
     team.push(member);
     builds[String(id)] = build;
   });
@@ -88,7 +75,7 @@ function parseShowdownPaste(paste: string): { team: TeamMember[]; builds: Record
   return { team, builds };
 }
 
-// ── Suggestion card ───────────────────────────────────────────────────────
+/* ── Suggestion Card ─────────────────────────────── */
 function SuggestionCard({
   suggestion,
   onAccept,
@@ -99,30 +86,26 @@ function SuggestionCard({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div
-      className="glass-card flex flex-col gap-3 p-4 animate-bounce-in hover:border-accent/50 transition-all"
-      style={{ cursor: "default" }}
-    >
+    <div className="glass-card flex flex-col gap-3 p-4 animate-bounce-in">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <PokemonSprite name={suggestion.name} size={56} />
+        <PokemonSprite name={suggestion.name} size={60} animate />
         <div className="flex flex-col gap-1 flex-1 min-w-0">
           <span
-            className="font-bold capitalize text-sm leading-tight"
+            className="font-bold capitalize text-sm"
             style={{ color: "var(--text-primary)" }}
           >
             {suggestion.name}
           </span>
-          <span
-            className="text-xs"
-            style={{ color: "var(--accent)" }}
-          >
-            {suggestion.role}
-          </span>
+          {suggestion.role && (
+            <span className="badge badge-accent" style={{ fontSize: "0.6rem", alignSelf: "flex-start" }}>
+              {suggestion.role}
+            </span>
+          )}
         </div>
         <button
           className="btn-primary py-2 px-3 text-xs flex items-center gap-1.5"
           onClick={() => onAccept(suggestion)}
-          title="Aceptar sugerencia"
         >
           <ArrowRight size={13} />
           Usar
@@ -163,9 +146,9 @@ function SuggestionCard({
       {/* Moves */}
       {suggestion.build.moves?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {suggestion.build.moves.map((move) => (
+          {suggestion.build.moves.map((move, i) => (
             <span
-              key={move}
+              key={`${move}-${i}`}
               className="badge badge-accent"
               style={{ fontSize: "0.6rem" }}
             >
@@ -177,56 +160,55 @@ function SuggestionCard({
 
       {/* Reasoning toggle */}
       <button
-        className="text-xs text-left"
+        className="flex items-center gap-1 text-xs text-left"
         style={{ color: "var(--text-muted)" }}
         onClick={() => setExpanded((v) => !v)}
       >
-        {expanded ? "▲ Ocultar razonamiento" : "▼ Ver razonamiento"}
+        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        {expanded ? "Ocultar razonamiento" : "Ver razonamiento"}
       </button>
 
       {expanded && (
-        <p
-          className="text-xs leading-relaxed animate-fade-in px-1"
-          style={{ color: "var(--text-secondary)" }}
-        >
-          {suggestion.reasoning}
-        </p>
-      )}
-
-      {/* Synergies */}
-      {suggestion.synergies?.length > 0 && expanded && (
-        <div className="flex flex-wrap gap-1.5">
-          {suggestion.synergies.map((s) => (
-            <span
-              key={s}
-              className="text-xs px-2 py-0.5 rounded-full"
-              style={{
-                background: "rgba(34,197,94,0.1)",
-                color: "var(--success)",
-                border: "1px solid rgba(34,197,94,0.2)",
-              }}
-            >
-              {s}
-            </span>
-          ))}
+        <div className="flex flex-col gap-2 animate-fade-in">
+          <p
+            className="text-xs leading-relaxed px-1"
+            style={{ color: "var(--text-secondary)" }}
+          >
+            {suggestion.reasoning}
+          </p>
+          {suggestion.synergies?.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {suggestion.synergies.map((s) => (
+                <span
+                  key={s}
+                  className="text-xs px-2 py-0.5 rounded-full"
+                  style={{
+                    background: "rgba(34,197,94,0.1)",
+                    color: "var(--success)",
+                    border: "1px solid rgba(34,197,94,0.2)",
+                  }}
+                >
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-// ── Main SwapView ─────────────────────────────────────────────────────────
+/* ── Main SwapView ───────────────────────────────── */
 export function SwapView() {
   const { suggestions, loading, error, findReplacement, reset } = useSwap();
   const builder = useBuilder();
 
-  // Local state: allow importing a separate paste instead of using builder team
   const [importMode, setImportMode] = useState<"builder" | "paste">("builder");
   const [paste, setPaste] = useState("");
   const [pasteTeam, setPasteTeam] = useState<(TeamMember | null)[]>([]);
   const [pasteBuilds, setPasteBuilds] = useState<Record<string, Build>>({});
   const [parseError, setParseError] = useState<string | null>(null);
-
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [swapFeedback, setSwapFeedback] = useState("");
   const [acceptedSlot, setAcceptedSlot] = useState<number | null>(null);
@@ -245,7 +227,7 @@ export function SwapView() {
     try {
       const { team, builds } = parseShowdownPaste(paste);
       if (team.length === 0) {
-        setParseError("No se pudo leer el equipo. Verifica el formato Showdown.");
+        setParseError("No se pudo leer el equipo. Verifica el formato.");
         return;
       }
       setPasteTeam(team.map((t) => t as TeamMember | null).concat(Array(6 - team.length).fill(null)));
@@ -253,7 +235,7 @@ export function SwapView() {
       setSelectedSlot(null);
       reset();
     } catch {
-      setParseError("Error al parsear el paste. Verifica el formato.");
+      setParseError("Error al parsear el paste.");
     }
   }
 
@@ -284,12 +266,8 @@ export function SwapView() {
       nature: suggestion.build.nature,
       item: suggestion.build.item,
       moves: suggestion.build.moves,
-      ev_hp: evMap["hp"] ?? 0,
-      ev_atk: evMap["atk"] ?? 0,
-      ev_def: evMap["def"] ?? 0,
-      ev_spa: evMap["spa"] ?? 0,
-      ev_spd: evMap["spd"] ?? 0,
-      ev_spe: evMap["spe"] ?? 0,
+      ev_hp: evMap["hp"] ?? 0, ev_atk: evMap["atk"] ?? 0, ev_def: evMap["def"] ?? 0,
+      ev_spa: evMap["spa"] ?? 0, ev_spd: evMap["spd"] ?? 0, ev_spe: evMap["spe"] ?? 0,
       tera_type: suggestion.build.teraType,
     };
 
@@ -299,8 +277,7 @@ export function SwapView() {
       const updated = [...pasteTeam];
       updated[selectedSlot] = newMember;
       setPasteTeam(updated);
-      const updatedBuilds = { ...pasteBuilds, [String(newMember.id)]: newBuild };
-      setPasteBuilds(updatedBuilds);
+      setPasteBuilds({ ...pasteBuilds, [String(newMember.id)]: newBuild });
     }
 
     setAcceptedSlot(selectedSlot);
@@ -309,163 +286,155 @@ export function SwapView() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
-      {/* Header */}
-      <div className="flex flex-col gap-3">
-        <div className="page-header">
-          <div className="flex items-center gap-3">
+    <div className="relative w-full min-h-screen">
+      <PokeballPattern />
+      <div className="relative z-[1] w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-6">
+        {/* Header */}
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2.5">
             <div
-              className="w-11 h-11 rounded-lg flex items-center justify-center"
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
             >
               <RefreshCw size={20} style={{ color: "var(--accent)" }} />
             </div>
             <h1
               className="font-bold text-balance"
-              style={{ color: "var(--text-primary)", fontSize: "clamp(1.5rem,4vw,2rem)" }}
+              style={{ color: "var(--text-primary)", fontSize: "clamp(1.35rem,3vw,1.75rem)" }}
             >
               Cambio de Miembro
             </h1>
           </div>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Selecciona un Pokemon y recibe sugerencias IA para optimizar tu equipo.
+          </p>
         </div>
-        <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Selecciona un Pokémon y recibe sugerencias IA para optimizar tu equipo.
-        </p>
-      </div>
 
-      {/* Source toggle */}
-      <div
-        className="flex gap-2 p-1 rounded-xl w-fit"
-        style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
-      >
-        {(["builder", "paste"] as const).map((mode) => (
-          <button
-            key={mode}
-            className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150"
-            style={{
-              background: importMode === mode ? "var(--accent)" : "transparent",
-              color: importMode === mode ? "#fff" : "var(--text-secondary)",
-              border: "none",
-              cursor: "pointer",
-            }}
-            onClick={() => {
-              setImportMode(mode);
-              setSelectedSlot(null);
-              reset();
-            }}
-          >
-            {mode === "builder" ? "Usar equipo del Builder" : "Importar Showdown Paste"}
-          </button>
-        ))}
-      </div>
-
-      {/* Paste import */}
-      {importMode === "paste" && (
+        {/* Source toggle */}
         <div
-          className="glass-card p-4 flex flex-col gap-3 animate-bounce-in"
+          className="flex gap-1 p-1 rounded-xl w-fit"
+          style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}
         >
-          <label
-            className="text-xs uppercase tracking-wider font-semibold"
-            style={{ color: "var(--text-muted)" }}
-          >
-            Showdown Export Paste
-          </label>
-          <textarea
-            className="input font-mono text-xs resize-none"
-            rows={8}
-            placeholder={"Charizard @ Choice Specs\nAbility: Blaze\nEVs: 252 SpA / 4 SpD / 252 Spe\nTimid Nature\n- Fire Blast\n- Air Slash\n- Focus Blast\n- Roost\n\n..."}
-            value={paste}
-            onChange={(e) => setPaste(e.target.value)}
-            style={{ fontSize: "0.72rem", lineHeight: 1.7 }}
-          />
-          {parseError && (
-            <p className="text-xs" style={{ color: "var(--danger)" }}>
-              {parseError}
-            </p>
-          )}
-          <button
-            className="btn-primary w-fit text-sm"
-            onClick={handleParsePaste}
-          >
-            Cargar equipo
-          </button>
+          {(["builder", "paste"] as const).map((mode) => (
+            <button
+              key={mode}
+              className="px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200"
+              style={{
+                background: importMode === mode ? "var(--accent)" : "transparent",
+                color: importMode === mode ? "#fff" : "var(--text-secondary)",
+                boxShadow: importMode === mode ? "0 2px 12px var(--accent-glow)" : "none",
+              }}
+              onClick={() => {
+                setImportMode(mode);
+                setSelectedSlot(null);
+                reset();
+              }}
+            >
+              {mode === "builder" ? "Equipo del Builder" : "Importar Showdown"}
+            </button>
+          ))}
         </div>
-      )}
 
-      {/* Team slots */}
-      {filledTeam.length > 0 ? (
-        <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
-          <div className="flex items-center justify-between">
-            <span
+        {/* Paste import */}
+        {importMode === "paste" && (
+          <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
+            <label
               className="text-xs uppercase tracking-wider font-semibold"
               style={{ color: "var(--text-muted)" }}
             >
-              Selecciona el slot a reemplazar
-            </span>
-            <span className="badge badge-accent" style={{ fontSize: "0.65rem" }}>
-              {filledTeam.length} / 6
-            </span>
+              Showdown Export Paste
+            </label>
+            <textarea
+              className="input font-mono text-xs resize-none"
+              rows={8}
+              placeholder={"Charizard @ Choice Specs\nAbility: Blaze\nEVs: 252 SpA / 4 SpD / 252 Spe\nTimid Nature\n- Fire Blast\n- Air Slash\n- Focus Blast\n- Roost\n\n..."}
+              value={paste}
+              onChange={(e) => setPaste(e.target.value)}
+              style={{ fontSize: "0.72rem", lineHeight: 1.7 }}
+            />
+            {parseError && (
+              <p className="text-xs" style={{ color: "var(--danger)" }}>{parseError}</p>
+            )}
+            <button className="btn-primary w-fit text-sm" onClick={handleParsePaste}>
+              Cargar equipo
+            </button>
           </div>
+        )}
 
-          <div className="flex flex-wrap gap-3">
-            {activeTeam.map((pokemon, i) => {
-              if (!pokemon) return null;
-              const build = activeBuilds[String(pokemon.id)];
-              const isSelected = selectedSlot === i;
-              const isAccepted = acceptedSlot === i;
+        {/* ── Team horizontal strip ──────────────── */}
+        {filledTeam.length > 0 ? (
+          <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
+            <div className="flex items-center justify-between">
+              <span
+                className="text-xs uppercase tracking-wider font-semibold"
+                style={{ color: "var(--text-muted)" }}
+              >
+                Selecciona el slot a reemplazar
+              </span>
+              <span className="badge badge-accent" style={{ fontSize: "0.65rem" }}>
+                {filledTeam.length} / 6
+              </span>
+            </div>
 
-              return (
-                <button
-                  key={i}
-                  className="flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-150"
-                  style={{
-                    background: isAccepted
-                      ? "rgba(34,197,94,0.12)"
-                      : isSelected
-                      ? "var(--accent-glow)"
-                      : "var(--bg-input)",
-                    border: `1px solid ${
-                      isAccepted
-                        ? "var(--success)"
+            <div className="flex gap-3 overflow-x-auto pb-1">
+              {activeTeam.map((pokemon, i) => {
+                if (!pokemon) return null;
+                const build = activeBuilds[String(pokemon.id)];
+                const isSelected = selectedSlot === i;
+                const isAccepted = acceptedSlot === i;
+
+                return (
+                  <button
+                    key={i}
+                    className="flex flex-col items-center gap-1.5 p-3 rounded-xl transition-all duration-200 flex-shrink-0"
+                    style={{
+                      background: isAccepted
+                        ? "rgba(34,197,94,0.12)"
                         : isSelected
-                        ? "var(--accent)"
-                        : "var(--border)"
-                    }`,
-                    minWidth: 76,
-                  }}
-                  onClick={() => {
-                    setSelectedSlot(isSelected ? null : i);
-                    reset();
-                  }}
-                >
-                  <PokemonSprite name={pokemon.nombre} size={48} />
-                  <span
-                    className="text-xs font-medium capitalize"
-                    style={{ color: "var(--text-secondary)" }}
+                        ? "var(--accent-glow)"
+                        : "var(--bg-input)",
+                      border: `2px solid ${
+                        isAccepted
+                          ? "var(--success)"
+                          : isSelected
+                          ? "var(--accent)"
+                          : "var(--border)"
+                      }`,
+                      minWidth: 90,
+                      boxShadow: isSelected ? "0 4px 16px var(--accent-glow)" : "none",
+                    }}
+                    onClick={() => {
+                      setSelectedSlot(isSelected ? null : i);
+                      reset();
+                    }}
                   >
-                    {pokemon.nombre}
-                  </span>
-                  {build?.item && (
-                    <span className="text-xs" style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>
-                      @ {build.item}
+                    <PokemonSprite name={pokemon.nombre} spriteUrl={pokemon.sprite_url} size={52} animate={isSelected} />
+                    <span
+                      className="text-xs font-bold capitalize truncate w-full text-center"
+                      style={{ color: "var(--text-primary)" }}
+                    >
+                      {pokemon.nombre}
                     </span>
-                  )}
-                  {isAccepted && (
-                    <span className="text-xs font-bold" style={{ color: "var(--success)" }}>
-                      Actualizado
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+                    {build?.item && (
+                      <span className="text-xs truncate w-full text-center" style={{ color: "var(--text-muted)", fontSize: "0.6rem" }}>
+                        @ {build.item}
+                      </span>
+                    )}
+                    {isAccepted && (
+                      <span className="text-xs font-bold" style={{ color: "var(--success)" }}>
+                        Actualizado
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      ) : (
-        importMode === "builder" ? (
+        ) : importMode === "builder" ? (
           <EmptyState
             icon={<RefreshCw size={32} />}
             title="Sin equipo en el Builder"
-            description="Ve al Team Builder, genera un equipo y luego vuelve aquí para hacer swaps."
+            description="Ve al Team Builder, genera un equipo y luego vuelve aqui."
           />
         ) : (
           <EmptyState
@@ -473,113 +442,110 @@ export function SwapView() {
             title="Sin equipo cargado"
             description="Pega tu equipo en formato Showdown y presiona Cargar equipo."
           />
-        )
-      )}
+        )}
 
-      {/* Swap config */}
-      {selectedSlot !== null && activeTeam[selectedSlot] && (
-        <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
-          <div className="flex items-center gap-2">
-            <span
-              className="text-xs uppercase tracking-wider font-semibold"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Reemplazando a
-            </span>
-            <span
-              className="font-bold capitalize text-sm"
-              style={{ color: "var(--accent)" }}
-            >
-              {activeTeam[selectedSlot]!.nombre}
-            </span>
-          </div>
+        {/* Swap config */}
+        {selectedSlot !== null && activeTeam[selectedSlot] && (
+          <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
+                Reemplazando a
+              </span>
+              <span className="font-bold capitalize text-sm" style={{ color: "var(--accent)" }}>
+                {activeTeam[selectedSlot]!.nombre}
+              </span>
+            </div>
 
-          <div className="flex flex-col gap-2">
-            <label
-              className="text-xs"
-              style={{ color: "var(--text-muted)" }}
-            >
-              Feedback opcional (ej. "necesito mejor cobertura contra agua")
-            </label>
             <input
               type="text"
               className="input text-sm"
-              placeholder="Describe qué quieres mejorar..."
+              placeholder={"Describe que quieres mejorar..."}
               value={swapFeedback}
               onChange={(e) => setSwapFeedback(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleFindReplacement();
               }}
             />
-          </div>
 
-          <button
-            className="btn-primary w-full animate-pulse-glow"
-            onClick={handleFindReplacement}
-            disabled={loading}
-            style={{ fontSize: "0.9rem", padding: "12px" }}
-          >
-            {loading
-              ? "Buscando reemplazos..."
-              : `Buscar reemplazo para ${activeTeam[selectedSlot]!.nombre}`}
-          </button>
-        </div>
-      )}
-
-      {error && (
-        <div
-          className="rounded-xl px-4 py-3 text-sm"
-          style={{
-            background: "rgba(239,68,68,0.1)",
-            color: "var(--danger)",
-            border: "1px solid rgba(239,68,68,0.25)",
-          }}
-          role="alert"
-        >
-          {error}
-        </div>
-      )}
-
-      {/* Loading skeletons */}
-      {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="skeleton rounded-xl" style={{ height: 160 }} />
-          ))}
-        </div>
-      )}
-
-      {/* Suggestions */}
-      {suggestions.length > 0 && !loading && (
-        <div className="flex flex-col gap-4 animate-slide-up">
-          <div className="flex items-center justify-between">
-            <h2
-              className="text-xs uppercase tracking-wider font-semibold"
-              style={{ color: "var(--text-muted)" }}
-            >
-              {suggestions.length} sugerencia{suggestions.length !== 1 ? "s" : ""} de reemplazo
-            </h2>
             <button
-              className="btn-ghost text-xs flex items-center gap-1.5"
-              onClick={() => { reset(); handleFindReplacement(); }}
+              className="btn-primary w-full animate-pulse-glow"
+              onClick={handleFindReplacement}
               disabled={loading}
+              style={{ fontSize: "0.9rem", padding: "12px" }}
             >
-              <RefreshCw size={12} />
-              Regenerar
+              {loading ? (
+                <>
+                  <Pokeball size={16} className="animate-rotate-pokeball" />
+                  Buscando reemplazos...
+                </>
+              ) : (
+                <>
+                  <Swords size={16} />
+                  {`Buscar reemplazo para ${activeTeam[selectedSlot]!.nombre}`}
+                </>
+              )}
             </button>
           </div>
+        )}
 
+        {error && (
+          <div
+            className="rounded-xl px-4 py-3 text-sm"
+            style={{
+              background: "rgba(239,68,68,0.1)",
+              color: "var(--danger)",
+              border: "1px solid rgba(239,68,68,0.25)",
+            }}
+            role="alert"
+          >
+            {error}
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {suggestions.map((sug) => (
-              <SuggestionCard
-                key={String(sug.id)}
-                suggestion={sug}
-                onAccept={handleAccept}
-              />
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="skeleton rounded-xl" style={{ height: 180 }} />
             ))}
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Suggestions */}
+        {suggestions.length > 0 && !loading && (
+          <div className="flex flex-col gap-4 animate-slide-up">
+            <div className="flex items-center justify-between">
+              <h2
+                className="text-xs uppercase tracking-wider font-semibold"
+                style={{ color: "var(--text-muted)" }}
+              >
+                {suggestions.length} sugerencia{suggestions.length !== 1 ? "s" : ""} de reemplazo
+              </h2>
+              <button
+                className="btn-ghost text-xs flex items-center gap-1.5"
+                onClick={() => {
+                  reset();
+                  handleFindReplacement();
+                }}
+                disabled={loading}
+              >
+                <RefreshCw size={12} />
+                Regenerar
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 stagger-children">
+              {suggestions.map((sug) => (
+                <SuggestionCard
+                  key={String(sug.id)}
+                  suggestion={sug}
+                  onAccept={handleAccept}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

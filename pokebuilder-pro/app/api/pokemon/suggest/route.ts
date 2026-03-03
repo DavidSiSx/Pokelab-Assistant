@@ -236,11 +236,17 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuggestRespon
 
     const response: SuggestResponse = {
       success: true,
-      suggestions: suggestions.map((sug: any) => ({
-        id:   String(sug.id   || sug.dex_id || ""),
-        name: sug.name || sug.nombre || "",
-        tier: sug.tier || "",
-        build: {
+      suggestions: suggestions.map((sug: any) => {
+        const poolPoke = poolArray.find((p: any) => Number(p.id) === Number(sug.id));
+        return {
+          id:   String(sug.id   || sug.dex_id || ""),
+          name: sug.name || sug.nombre || "",
+          tier: sug.tier || "",
+          tipo1: sug.tipo1 || poolPoke?.tipo1 || "",
+          tipo2: sug.tipo2 || poolPoke?.tipo2 || null,
+          sprite_url: sug.sprite_url || poolPoke?.sprite_url || null,
+          national_dex: sug.national_dex || poolPoke?.national_dex || poolPoke?.id || null,
+          build: {
           ability:  sug.ability  || "",
           nature:   sug.nature   || "",
           evSpread: sug.evSpread || [
@@ -260,7 +266,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuggestRespon
         synergies: Array.isArray(sug.synergies) ? sug.synergies : [],
         role:      sug.role      || "",
         reasoning: sug.reasoning || "",
-      })),
+      };
+      }),
       report: {
         teamComposition: reportRaw.teamComposition || "",
         typesCoverage:   reportRaw.typesCoverage   || "",

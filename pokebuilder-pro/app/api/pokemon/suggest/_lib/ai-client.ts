@@ -51,11 +51,15 @@ function checkRateLimit(key: string): boolean {
 // PARSER ROBUSTO — 3 niveles de recuperación
 // ─────────────────────────────────────────────────────────────────
 function parseAIResponse<T>(raw: string): T {
-  // Paso 1: limpiar markdown
+  // Paso 1: limpiar markdown agresivamente
   let cleaned = raw
-    .replace(/^```(?:json)?\s*/im, "")
-    .replace(/\s*```\s*$/m, "")
+    .replace(/^[\s\S]*?```(?:json)?\s*/i, "")
+    .replace(/\s*```[\s\S]*$/i, "")
     .trim();
+  // If still starts with ```, strip all code fences
+  if (cleaned.includes("```")) {
+    cleaned = cleaned.replace(/```(?:json)?/gi, "").trim();
+  }
 
   // Paso 2: parse directo
   try {
@@ -131,7 +135,8 @@ async function callGemini(
       temperature:     0.7,
       topK:            40,
       topP:            0.95,
-      maxOutputTokens: 8192,
+      maxOutputTokens: 16384,
+      responseMimeType: "application/json",
     },
   };
 
@@ -180,7 +185,7 @@ async function callOpenRouter(
     messages:    [{ role: "user", content: prompt }],
     temperature: 0.7,
     top_p:       0.95,
-    max_tokens:  8192,
+    max_tokens:  16384,
   };
 
   try {

@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@/lib/supabase/server";
+import { createUserClient } from "@/lib/supabase/server";
 import type { SaveTeamRequest, SaveTeamResponse, GetTeamsResponse } from "@/types/api";
 import type { SavedTeam } from "@/types/pokemon";
 
 // ── GET — list user's saved teams ────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const supabase = createServerClient();
+  const { client: supabase } = createUserClient(req);
 
   const {
     data: { user },
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
 // ── POST — save a new team ────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const supabase = createServerClient();
+  const { client: supabase } = createUserClient(req);
 
   const {
     data: { user },

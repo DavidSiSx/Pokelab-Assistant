@@ -271,21 +271,29 @@ export function TeamsView() {
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-6 flex flex-col gap-6">
+    <div className="w-full max-w-4xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h1
-            className="font-bold text-balance"
-            style={{ color: "var(--text-primary)", fontSize: "clamp(1.25rem,3vw,1.75rem)" }}
-          >
-            Mis Equipos
-          </h1>
-          <p style={{ color: "var(--text-muted)", fontSize: "0.875rem" }}>
-            {total > 0 ? `${total} equipo${total !== 1 ? "s" : ""} guardado${total !== 1 ? "s" : ""}` : "Sin equipos guardados todavía"}
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2.5">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
+            >
+              <Bookmark size={18} style={{ color: "var(--accent)" }} />
+            </div>
+            <h1
+              className="font-bold text-balance"
+              style={{ color: "var(--text-primary)", fontSize: "clamp(1.35rem,3vw,1.75rem)" }}
+            >
+              Mis Equipos
+            </h1>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            {total > 0 ? `${total} equipo${total !== 1 ? "s" : ""} guardado${total !== 1 ? "s" : ""}` : "Sin equipos guardados todavia"}
           </p>
         </div>
-        <Link href="/builder" className="btn-primary text-sm flex items-center gap-2">
+        <Link href="/builder" className="btn-primary text-xs flex items-center gap-2">
           <Wand2 size={14} />
           Crear equipo
         </Link>

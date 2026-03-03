@@ -13,6 +13,7 @@ import { FeedbackPanel } from "@/components/builder/FeedbackPanel";
 import { LeaderSearch } from "@/components/builder/LeaderSearch";
 import { SaveTeamModal } from "@/components/builder/SaveTeamModal";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { Pokeball } from "@/components/ui/PokeballBg";
 import { Wand2, RotateCcw, Save, ClipboardCopy, Sparkles } from "lucide-react";
 
 export function BuilderView() {
@@ -87,14 +88,14 @@ export function BuilderView() {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between page-header">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2.5">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
               style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
             >
-              <Wand2 size={18} style={{ color: "var(--accent)" }} />
+              <Pokeball size={22} />
             </div>
             <h1
               className="font-bold text-balance"
@@ -184,10 +185,7 @@ export function BuilderView() {
           >
             {loading ? (
               <>
-                <span
-                  className="w-4 h-4 border-2 rounded-full animate-spin"
-                  style={{ borderColor: "rgba(255,255,255,0.3)", borderTopColor: "#fff" }}
-                />
+                <Pokeball size={18} className="animate-rotate-pokeball" />
                 Generando...
               </>
             ) : (

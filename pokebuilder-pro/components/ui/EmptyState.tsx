@@ -13,17 +13,17 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action, compact = false }: EmptyStateProps) {
   return (
     <div
-      className={`card flex flex-col items-center justify-center text-center ${compact ? "py-10 gap-3" : "py-16 gap-5"}`}
-      style={{ borderStyle: "dashed", background: "var(--bg-surface)" }}
+      className={`glass-card flex flex-col items-center justify-center text-center ${compact ? "py-10 gap-3" : "py-16 gap-6"}`}
+      style={{ borderStyle: "dashed", borderColor: "var(--border)" }}
     >
       {icon && (
         <div
-          className="flex items-center justify-center rounded-2xl"
+          className="flex items-center justify-center rounded-xl animate-bounce-in"
           style={{
-            width: compact ? 52 : 64,
-            height: compact ? 52 : 64,
+            width: compact ? 56 : 72,
+            height: compact ? 56 : 72,
             background: "var(--accent-glow)",
-            border: "1px solid var(--accent)",
+            border: "2px solid var(--accent)",
             color: "var(--accent)",
           }}
         >

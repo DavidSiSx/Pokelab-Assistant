@@ -68,12 +68,12 @@ function TeamCard({
 
   return (
     <div
-      className="card flex flex-col gap-0 overflow-hidden animate-fade-in"
-      style={{ borderColor: expanded ? "var(--accent)" : "var(--border)", transition: "border-color 0.2s" }}
+      className="glass-card flex flex-col gap-0 overflow-hidden animate-bounce-in"
+      style={{ borderColor: expanded ? "var(--accent)" : "var(--border)", transition: "all 0.25s" }}
     >
       {/* Header */}
       <div
-        className="flex items-center gap-3 p-4 cursor-pointer"
+        className="flex items-center gap-3 p-4 cursor-pointer hover:bg-bg-card-hover transition-colors"
         onClick={() => setExpanded((v) => !v)}
         role="button"
         tabIndex={0}
@@ -273,28 +273,32 @@ export function TeamsView() {
   return (
     <div className="w-full max-w-4xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2.5">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
-            >
-              <Bookmark size={18} style={{ color: "var(--accent)" }} />
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-3">
+          <div className="page-header">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-lg flex items-center justify-center"
+                style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
+              >
+                <Bookmark size={20} style={{ color: "var(--accent)" }} />
+              </div>
+              <h1
+                className="font-bold text-balance"
+                style={{ color: "var(--text-primary)", fontSize: "clamp(1.5rem,4vw,2rem)" }}
+              >
+                Mis Equipos Pokémon
+              </h1>
             </div>
-            <h1
-              className="font-bold text-balance"
-              style={{ color: "var(--text-primary)", fontSize: "clamp(1.35rem,3vw,1.75rem)" }}
-            >
-              Mis Equipos
-            </h1>
           </div>
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            {total > 0 ? `${total} equipo${total !== 1 ? "s" : ""} guardado${total !== 1 ? "s" : ""}` : "Sin equipos guardados todavia"}
+            {total > 0
+              ? `${total} equipo${total !== 1 ? "s" : ""} guardado${total !== 1 ? "s" : ""}`
+              : "Sin equipos guardados todavía"}
           </p>
         </div>
-        <Link href="/builder" className="btn-primary text-xs flex items-center gap-2">
-          <Wand2 size={14} />
+        <Link href="/builder" className="inline-flex items-center gap-2 px-4 py-2.5 bg-accent hover:bg-accent/90 text-white rounded-lg font-medium transition-all text-sm">
+          <Wand2 size={16} />
           Crear equipo
         </Link>
       </div>
@@ -315,7 +319,7 @@ export function TeamsView() {
 
       {/* Teams list */}
       {teams.length > 0 ? (
-        <div className="flex flex-col gap-3 stagger-children">
+        <div className="flex flex-col gap-3">
           {teams.map((team) => (
             <TeamCard
               key={team.id}

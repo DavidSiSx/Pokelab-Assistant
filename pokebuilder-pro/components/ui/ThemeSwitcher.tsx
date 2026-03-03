@@ -16,7 +16,7 @@ export function ThemeSwitcher({ compact = false }: ThemeSwitcherProps) {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="btn-ghost flex items-center gap-2"
+        className="px-3 py-2 rounded-lg hover:bg-bg-card-hover text-foreground transition-colors flex items-center gap-2"
         aria-label="Cambiar tema"
         aria-expanded={open}
       >
@@ -39,7 +39,7 @@ export function ThemeSwitcher({ compact = false }: ThemeSwitcherProps) {
 
           {/* Dropdown */}
           <div
-            className="absolute right-0 top-full mt-2 z-50 card animate-fade-in-scale p-2 flex flex-col gap-1 min-w-[160px]"
+            className="absolute right-0 top-full mt-2 z-50 glass-card animate-bounce-in p-2 flex flex-col gap-1 min-w-[180px]"
             role="menu"
           >
             <p

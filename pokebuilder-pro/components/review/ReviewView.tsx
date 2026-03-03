@@ -57,29 +57,31 @@ export function ReviewView({
   return (
     <div className="w-full max-w-7xl mx-auto px-4 py-8 flex flex-col gap-8">
       {/* Header */}
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
-          >
-            <ShieldCheck size={18} style={{ color: "var(--accent)" }} />
+      <div className="flex flex-col gap-3">
+        <div className="page-header">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-11 h-11 rounded-lg flex items-center justify-center"
+              style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}
+            >
+              <ShieldCheck size={20} style={{ color: "var(--accent)" }} />
+            </div>
+            <h1
+              className="font-bold text-balance"
+              style={{ color: "var(--text-primary)", fontSize: "clamp(1.5rem,4vw,2rem)" }}
+            >
+              Análisis de Equipo
+            </h1>
           </div>
-          <h1
-            className="font-bold text-balance"
-            style={{ color: "var(--text-primary)", fontSize: "clamp(1.35rem,3vw,1.75rem)" }}
-          >
-            Review de Equipo
-          </h1>
         </div>
         <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
-          Analisis competitivo profundo de tu equipo actual.
+          Evaluación competitiva profunda de tu estrategia y cobertura.
         </p>
       </div>
 
       {/* Team preview */}
       {filledTeam.length > 0 ? (
-        <div className="card p-4 flex flex-col gap-3">
+        <div className="glass-card p-4 flex flex-col gap-3 animate-bounce-in">
           <div className="flex items-center justify-between">
             <span
               className="text-xs uppercase tracking-wider font-semibold"
@@ -208,8 +210,8 @@ export function ReviewView({
         <div className="flex flex-col gap-6 animate-slide-up">
           {/* Score hero */}
           <div
-            className="card p-6 flex flex-col items-center gap-4 sm:flex-row sm:items-start"
-            style={{ borderColor: gradeColor, boxShadow: `0 0 0 1px ${gradeColor}22, 0 8px 32px ${gradeColor}22` }}
+            className="glass-card p-6 flex flex-col items-center gap-4 sm:flex-row sm:items-start"
+            style={{ borderColor: gradeColor, boxShadow: `0 0 0 1px ${gradeColor}33, 0 12px 40px ${gradeColor}22` }}
           >
             <div className="flex flex-col items-center gap-1" style={{ flexShrink: 0 }}>
               <span
@@ -250,7 +252,7 @@ export function ReviewView({
 
           {/* Categories */}
           {result.categories && (
-            <div className="card p-4 flex flex-col gap-3">
+            <div className="glass-card p-4 flex flex-col gap-3">
               <h3
                 className="text-xs uppercase tracking-wider font-semibold"
                 style={{ color: "var(--text-muted)" }}
@@ -334,7 +336,7 @@ function TagSection({
   title, items, color, bg,
 }: { title: string; items: string[]; color: string; bg: string }) {
   return (
-    <div className="card p-4 flex flex-col gap-3">
+    <div className="glass-card p-4 flex flex-col gap-3">
       <h3
         className="text-xs uppercase tracking-wider font-semibold"
         style={{ color: "var(--text-muted)" }}

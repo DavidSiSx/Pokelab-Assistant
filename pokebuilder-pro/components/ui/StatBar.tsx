@@ -45,8 +45,8 @@ export function StatBar({
       </div>
 
       <div
-        className="w-full h-1.5 rounded-full overflow-hidden"
-        style={{ background: "var(--border)" }}
+        className="w-full h-2 rounded-full overflow-hidden"
+        style={{ background: "var(--bg-input)", border: "1px solid var(--border)" }}
         role="progressbar"
         aria-valuenow={value}
         aria-valuemin={0}
@@ -58,7 +58,7 @@ export function StatBar({
             width: `${pct}%`,
             background: barColor,
             transition: animated ? "width 0.6s cubic-bezier(0.4,0,0.2,1)" : "none",
-            boxShadow: `0 0 6px ${barColor}66`,
+            boxShadow: `0 0 8px ${barColor}77, inset 0 0 4px ${barColor}33`,
           }}
         />
       </div>

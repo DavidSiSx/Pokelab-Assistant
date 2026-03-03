@@ -317,12 +317,13 @@ body {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.3s, transform 0.25s;
 }
 .card-hover:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-glow), 0 4px 24px var(--accent-glow);
+  box-shadow: 0 0 0 1px var(--accent-glow), 0 8px 32px var(--accent-glow);
+  transform: translateY(-2px);
 }
 
 /* Buttons */
@@ -527,3 +528,115 @@ body {
   z-index: -1;
 }
 .glow-border:hover::after { opacity: 1; }
+
+/* ══════════════════════════════════════════════════════
+   POKEBALL DECORATIVE ELEMENTS
+══════════════════════════════════════════════════════ */
+
+/* Pokeball rotation animation */
+@keyframes rotate-pokeball {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+@keyframes bounce-in {
+  0%   { opacity:0; transform:scale(0.3); }
+  50%  { opacity:1; transform:scale(1.05); }
+  70%  { transform:scale(0.95); }
+  100% { transform:scale(1); }
+}
+@keyframes glow-pulse {
+  0%,100% { opacity:0.4; }
+  50%     { opacity:0.8; }
+}
+@keyframes float-slow {
+  0%,100% { transform:translateY(0) rotate(0deg); }
+  50%     { transform:translateY(-20px) rotate(8deg); }
+}
+@keyframes float-slow-reverse {
+  0%,100% { transform:translateY(0) rotate(0deg); }
+  50%     { transform:translateY(-15px) rotate(-6deg); }
+}
+
+.animate-rotate-pokeball { animation:rotate-pokeball 3s ease-in-out infinite; }
+.animate-bounce-in       { animation:bounce-in 0.5s ease both; }
+.animate-glow-pulse      { animation:glow-pulse 2.5s ease-in-out infinite; }
+
+/* Pokeball floating pattern container */
+.pokeball-pattern-container {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.pokeball-float {
+  position: absolute;
+  color: var(--accent);
+}
+
+.pokeball-float-1 {
+  top: 10%; right: 8%;
+  animation: float-slow 8s ease-in-out infinite;
+}
+.pokeball-float-2 {
+  bottom: 15%; left: 5%;
+  animation: float-slow-reverse 10s ease-in-out infinite;
+  animation-delay: -3s;
+}
+.pokeball-float-3 {
+  top: 40%; right: 25%;
+  animation: float-slow 12s ease-in-out infinite;
+  animation-delay: -5s;
+}
+.pokeball-float-4 {
+  bottom: 30%; right: 15%;
+  animation: float-slow-reverse 9s ease-in-out infinite;
+  animation-delay: -2s;
+}
+.pokeball-float-5 {
+  top: 20%; left: 20%;
+  animation: float-slow 11s ease-in-out infinite;
+  animation-delay: -7s;
+}
+
+/* Glass card effect */
+.glass-card {
+  background: color-mix(in srgb, var(--bg-card) 80%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  border-radius: var(--radius-lg);
+  transition: background 0.25s, border-color 0.25s, box-shadow 0.3s, transform 0.25s;
+}
+.glass-card:hover {
+  background: color-mix(in srgb, var(--bg-card-hover) 85%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: 0 0 0 1px var(--accent-glow), 0 8px 32px rgba(0,0,0,0.3);
+  transform: translateY(-2px);
+}
+
+/* Page header with decorative accent line */
+.page-header {
+  position: relative;
+  padding-bottom: 16px;
+  margin-bottom: 24px;
+}
+.page-header::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 60px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 99px;
+}
+
+/* Type glow shadow utility */
+.type-glow {
+  transition: box-shadow 0.25s;
+}
+.type-glow:hover {
+  box-shadow: 0 0 12px var(--accent-glow), 0 4px 16px rgba(0,0,0,0.2);
+}

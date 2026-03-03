@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, Settings } from "lucide-react";
 import type { BuilderConfig } from "@/types/config";
+import { PokeballMini } from "@/components/ui/PokeballBg";
 
 const FORMATS = [
   "VGC 2025 Regulation H",
@@ -14,7 +16,6 @@ const FORMATS = [
   "Random Battle",
 ];
 
-
 interface BuilderConfigPanelProps {
   config: BuilderConfig;
   onChange: (c: Partial<BuilderConfig>) => void;
@@ -24,27 +25,31 @@ export function BuilderConfigPanel({ config, onChange }: BuilderConfigPanelProps
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="card" style={{ overflow: "hidden" }}>
+    <div className="glass-card" style={{ overflow: "hidden" }}>
       <button
-        className="w-full flex items-center justify-between p-4 btn-ghost"
-        style={{ borderRadius: 0, color: "var(--text-primary)", fontWeight: 600 }}
+        className="w-full flex items-center justify-between p-4 transition-colors duration-200"
+        style={{
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          color: "var(--text-primary)",
+          fontWeight: 600,
+        }}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
-        <span className="flex items-center gap-2 text-sm">
-          <span style={{ color: "var(--accent)" }}>⚙</span>
-          Configuración del Equipo
+        <span className="flex items-center gap-2.5 text-sm">
+          <Settings size={15} style={{ color: "var(--accent)" }} />
+          Configuracion del Equipo
         </span>
-        <span
+        <ChevronDown
+          size={14}
           style={{
             transform: open ? "rotate(180deg)" : "none",
-            transition: "transform 0.2s",
+            transition: "transform 0.25s ease",
             color: "var(--text-muted)",
-            fontSize: "0.75rem",
           }}
-        >
-          ▼
-        </span>
+        />
       </button>
 
       {open && (
@@ -71,7 +76,7 @@ export function BuilderConfigPanel({ config, onChange }: BuilderConfigPanelProps
           {/* Mechanics */}
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
-              Mecánicas
+              Mecanicas
             </span>
             <div className="grid grid-cols-2 gap-2">
               {(
@@ -87,14 +92,16 @@ export function BuilderConfigPanel({ config, onChange }: BuilderConfigPanelProps
                 return (
                   <button
                     key={key}
-                    className="text-xs py-2 px-3 rounded-lg font-medium transition-all duration-150"
+                    className="text-xs py-2.5 px-3 rounded-lg font-medium transition-all duration-200 flex items-center gap-1.5"
                     style={{
                       background: enabled ? "var(--accent-glow)" : "var(--bg-input)",
                       color: enabled ? "var(--accent-light)" : "var(--text-muted)",
                       border: `1px solid ${enabled ? "var(--accent)" : "var(--border)"}`,
+                      cursor: "pointer",
                     }}
                     onClick={() => onChange({ [key]: !enabled })}
                   >
+                    {enabled && <PokeballMini size={11} />}
                     {label}
                   </button>
                 );

@@ -1,0 +1,25 @@
+Thought for 1sStructure scannedBien, hay bastante ya creado. Leo todos los archivos clave de una vez para entender el estado exacto.
+
+Explore • 3 FilesExplore • 3 FilesExplore • 3 FilesExplore • 3 FilesPerfecto. Fases 1-5 están completas. Ahora arranco las **Fases 6, 7 y 8** — vistas completas: Builder, Review y Swap. Voy a construir la app page.tsx principal con navegacion y las 3 vistas como componentes separados.
+
+Explore • 2 FilesTengo todo el contexto. Ahora construyo las vistas. Empiezo con los **componentes Pokemon compartidos**, luego las **3 vistas principales** y finalmente el **page.tsx** con navegacion.
+
+PokemonSprite writtenTeamSlot writtenBuildCard writtenAiReportPanel writtenAhora construyo la **Vista del Builder (Fase 6)** — el corazón de la app:
+
+BuilderConfigPanel writtenFeedbackPanel writtenSaveTeamModal writtenLeaderSearch writtenAhora la vista principal del Builder:
+
+BuilderView writtenAhora la **Vista de Review (Fase 7)**:
+
+Buenas! te resumo mi proyecto, es un asistente inteligente que usa un sistema RAG, basicamente la ia tiene a su disposicion un monton de datos de competitivo de pokemon y te ayuda a hacer 3 cosas, Crearte un team, ya sea desde 0 o usando un pokemon como "lider" (basicamente el pokemon que si o si estara en team) te explicara todo sobre el equipo que te genero, cuando genera un team genera moveset, stats, nat, y demas, analiza el proyecto para mas contexto, su segunda funcion, es encontrar/cambiar un miembro(s) de tu equipo, tu importas tu team desde showdown *importante* o lo armas directamente en la pagina (claramente validando todo del pokemon para evitar alucinadas) y por ultimo un review de team, basicamente te dice los puntos fuertes y debiles de tu pokemon, debe haber un lugar donde puedas explicarle TU (usuario) a la ia el contexto del equipo, es decir cuando generes puedes poner un comentario de "Quiero que use sol o Prioriza el stall" o cosas mas explicadas, tambien debe haber un feedback del usuario , en base al feedback debe desencadenar accciones por ejemplo, te arma un equipo y en el feedback le dices, "No me gusta tal pokemon usa este otro o cambialo por otro, etc" debe desencadenar que se cambie ese pokemon (logica de negocio y validaciones ya sabes), haz las vistas por componentes, para mantener el equiibrio visual, MUY IMPORTANTE; Debe haber 2 versiones uno para movil y otra para Desktop, ambas deben ser totalmente legibles y correctas para su uso, no agregues descripciones exageradas, si algo agrega pequeños botones de mas informacion donde al presionar te salga una explicacion mas grande, considera los route.ts las vistas se deben adapatar a ellas, no alrevez, usa hooks y demas. Sigue las reglas de buenas practicas , el estilo de la aplicacion debe ser moderno y tematico de POKEMON, Microinteracciones avanzadas
+La microinteracción existe en todas las aplicaciones de software. La utilizamos cada vez que usamos diferentes aplicaciones. La función "Me gusta" de Instagram y "Retweet" de Twitter son los ejemplos perfectos de microinteracción.
+Las microinteracciones avanzadas, como los gestos y los controles sin contacto, ofrecen nuevas oportunidades para crear una experiencia más intuitiva. ustración de estados de vacío y error
+Los errores dan miedo, y el vacío es aburrido.
+Pero ambos son una parte integral de una aplicación de software.
+Así que los profesionales de UX/UI están dando un paso adelante para hacerlos más emocionantes y cómodos. extra, crea un area donde el usuario pueda Guardar su equipo para luego que inicie sesion pueda verlo y exportarlo a showdown, igual una seccion talvez en una Landing page antes de logear donde esten los teams mas populares esto hazlo soo visualmente por el momento, excepto lo de guardar, eso debe funcionar. nota extra: pon eleccion de tema y pon almenos 5 temas con diferentes paletas de colores, estos se deben guardar como preferencia del usuario.
+
+Paso 8  → Crear page.tsx para /builder, /review, /swap, /teams (activar navegacion)
+Paso 9  → Construir SwapView completa con ImportacionShowdown + sugerencias de IA
+Paso 10 → Construir TeamsView (lista de equipos guardados, exportar a Showdown, eliminar)
+Paso 11 → Crear paginas /login y /register con diseño tematico
+Paso 12 → Construir Landing Page publica (teams populares visual + CTA)
+Paso 13 → Pulir: Importacion Showdown en Swap, middleware de auth, preferencia de tema persistida desde Supabase al cargar sesion

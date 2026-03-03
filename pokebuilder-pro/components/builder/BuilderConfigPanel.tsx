@@ -14,7 +14,6 @@ const FORMATS = [
   "Random Battle",
 ];
 
-const TIERS = ["Ubers", "OU", "UU", "RU", "NU", "PU", "LC", "Any"];
 
 interface BuilderConfigPanelProps {
   config: BuilderConfig;
@@ -69,53 +68,34 @@ export function BuilderConfigPanel({ config, onChange }: BuilderConfigPanelProps
             </select>
           </div>
 
-          {/* Tier */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
-              Tier Preferido
-            </label>
-            <select
-              className="input"
-              value={config.tier ?? "Any"}
-              onChange={(e) => onChange({ tier: e.target.value })}
-            >
-              {TIERS.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-          </div>
-
           {/* Mechanics */}
           <div className="flex flex-col gap-2">
             <span className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
               Mecánicas
             </span>
             <div className="grid grid-cols-2 gap-2">
-              {(["terastallization", "dynamax", "gigantamax", "zmoves", "mega"] as const).map((mech) => {
-                const labels: Record<string, string> = {
-                  terastallization: "Terastal",
-                  dynamax: "Dynamax",
-                  gigantamax: "Gigantamax",
-                  zmoves: "Z-Moves",
-                  mega: "Mega",
-                };
-                const enabled = config.mechanics?.[mech] ?? false;
+              {(
+                [
+                  { key: "enableTera", label: "Terastal" },
+                  { key: "enableDynamax", label: "Dynamax" },
+                  { key: "enableGmax", label: "Gigantamax" },
+                  { key: "enableZMoves", label: "Z-Moves" },
+                  { key: "enableMega", label: "Mega" },
+                ] as const
+              ).map(({ key, label }) => {
+                const enabled = config[key] ?? false;
                 return (
                   <button
-                    key={mech}
+                    key={key}
                     className="text-xs py-2 px-3 rounded-lg font-medium transition-all duration-150"
                     style={{
                       background: enabled ? "var(--accent-glow)" : "var(--bg-input)",
                       color: enabled ? "var(--accent-light)" : "var(--text-muted)",
                       border: `1px solid ${enabled ? "var(--accent)" : "var(--border)"}`,
                     }}
-                    onClick={() =>
-                      onChange({
-                        mechanics: { ...(config.mechanics ?? {}), [mech]: !enabled },
-                      })
-                    }
+                    onClick={() => onChange({ [key]: !enabled })}
                   >
-                    {labels[mech]}
+                    {label}
                   </button>
                 );
               })}

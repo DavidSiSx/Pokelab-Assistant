@@ -3,9 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import type { Metadata } from "next";
 import { LogIn, Eye, EyeOff } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { Pokeball } from "@/components/ui/PokeballBg";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,43 +42,45 @@ export default function LoginPage() {
   }
 
   return (
-    <div
-      className="min-h-dvh flex flex-col items-center justify-center px-4 py-12"
-      style={{ background: "var(--bg-base)" }}
-    >
+    <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
       <Link
         href="/"
-        className="flex items-center gap-2 font-bold text-lg mb-8 select-none"
+        className="flex items-center gap-3 font-bold text-lg mb-10 select-none group"
         style={{ color: "var(--text-primary)", textDecoration: "none" }}
       >
-        <span
-          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black"
-          style={{ background: "var(--accent)", color: "#fff" }}
-        >
-          P
+        <Pokeball size={40} className="transition-transform duration-300 group-hover:rotate-[20deg]" />
+        <span className="flex items-center gap-1.5">
+          <span className="font-bold tracking-tight text-xl">Pokelab</span>
+          <span
+            className="text-[0.65rem] font-black uppercase tracking-widest px-2 py-0.5 rounded-md"
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            AI
+          </span>
         </span>
-        <span>Pokelab</span>
-        <span style={{ color: "var(--accent)" }}>AI</span>
       </Link>
 
       {/* Card */}
-      <div
-        className="card w-full max-w-sm p-8 flex flex-col gap-6 animate-fade-in-scale"
-      >
-        <div className="flex flex-col gap-1">
+      <div className="glass-card w-full max-w-sm p-8 flex flex-col gap-6 animate-fade-in-scale relative overflow-hidden">
+        {/* Decorative pokeball watermark */}
+        <div className="absolute -top-8 -right-8 opacity-[0.04]" aria-hidden="true">
+          <Pokeball size={120} />
+        </div>
+
+        <div className="relative flex flex-col gap-1.5">
           <h1
-            className="font-bold text-xl"
+            className="font-bold text-xl text-balance"
             style={{ color: "var(--text-primary)" }}
           >
-            Inicia sesión
+            Inicia sesion
           </h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
-            Accede a tus equipos guardados y más.
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
+            Accede a tus equipos guardados y mas.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        <form onSubmit={handleSubmit} className="relative flex flex-col gap-4" noValidate>
           {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label
@@ -86,7 +88,7 @@ export default function LoginPage() {
               className="text-xs font-semibold uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
-              Correo electrónico
+              Correo electronico
             </label>
             <input
               id="email"
@@ -108,14 +110,14 @@ export default function LoginPage() {
               className="text-xs font-semibold uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
-              Contraseña
+              Contrasena
             </label>
             <div className="relative">
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 className="input pr-10"
-                placeholder="••••••••"
+                placeholder="--------"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
@@ -127,7 +129,7 @@ export default function LoginPage() {
                 className="absolute right-3 top-1/2 -translate-y-1/2"
                 style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -152,33 +154,35 @@ export default function LoginPage() {
           {/* Submit */}
           <button
             type="submit"
-            className="btn-primary w-full animate-pulse-glow"
+            className="btn-primary w-full"
             disabled={loading || !email || !password}
             style={{ marginTop: 4 }}
           >
-            <LogIn size={16} />
+            {loading ? (
+              <Pokeball size={16} className="animate-rotate-pokeball" />
+            ) : (
+              <LogIn size={16} />
+            )}
             {loading ? "Ingresando..." : "Ingresar"}
           </button>
         </form>
 
         {/* Divider */}
-        <div className="flex items-center gap-3">
+        <div className="relative flex items-center gap-3">
           <div className="divider flex-1" />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            o
-          </span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>o</span>
           <div className="divider flex-1" />
         </div>
 
         {/* Register link */}
-        <p className="text-sm text-center" style={{ color: "var(--text-secondary)" }}>
-          {"¿No tienes cuenta? "}
+        <p className="relative text-sm text-center" style={{ color: "var(--text-secondary)" }}>
+          {"No tienes cuenta? "}
           <Link
             href="/register"
             className="font-semibold"
             style={{ color: "var(--accent)", textDecoration: "none" }}
           >
-            Regístrate gratis
+            Registrate gratis
           </Link>
         </p>
       </div>

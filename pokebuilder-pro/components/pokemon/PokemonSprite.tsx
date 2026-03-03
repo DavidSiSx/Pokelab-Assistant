@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { PokeballOutline } from "@/components/ui/PokeballBg";
 
 interface PokemonSpriteProps {
   name: string;
@@ -34,18 +35,15 @@ export function PokemonSprite({
   if (!name) {
     return (
       <div
-        className={className}
+        className={`flex items-center justify-center ${className}`}
         style={{
           width: size,
           height: size,
           borderRadius: "50%",
           background: "var(--bg-card-hover)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
         }}
       >
-        <span style={{ fontSize: size * 0.4, opacity: 0.3 }}>?</span>
+        <PokeballOutline size={size * 0.55} opacity={0.15} />
       </div>
     );
   }
@@ -57,9 +55,12 @@ export function PokemonSprite({
     >
       {!loaded && (
         <div
-          className="skeleton absolute inset-0 rounded-full"
+          className="absolute inset-0 flex items-center justify-center"
           style={{ width: size, height: size }}
-        />
+        >
+          <div className="skeleton absolute inset-0 rounded-full" />
+          <PokeballOutline size={size * 0.4} opacity={0.1} className="relative animate-spin-slow" />
+        </div>
       )}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
@@ -75,7 +76,7 @@ export function PokemonSprite({
         style={{
           imageRendering: "pixelated",
           opacity: loaded ? 1 : 0,
-          transition: "opacity 0.2s",
+          transition: "opacity 0.25s ease",
           width: size,
           height: size,
           objectFit: "contain",

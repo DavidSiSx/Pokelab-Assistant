@@ -5,16 +5,16 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { UserPlus, Eye, EyeOff, CheckCircle2 } from "lucide-react";
 import { createBrowserClient } from "@/lib/supabase/client";
+import { Pokeball } from "@/components/ui/PokeballBg";
 
 function PasswordStrength({ password }: { password: string }) {
   const checks = [
-    { label: "8 caracteres mínimo", pass: password.length >= 8 },
-    { label: "Una letra mayúscula", pass: /[A-Z]/.test(password) },
-    { label: "Un número", pass: /\d/.test(password) },
+    { label: "8 caracteres minimo", pass: password.length >= 8 },
+    { label: "Una letra mayuscula", pass: /[A-Z]/.test(password) },
+    { label: "Un numero", pass: /\d/.test(password) },
   ];
   const score = checks.filter((c) => c.pass).length;
   const colors = ["var(--danger)", "var(--warning)", "var(--warning)", "var(--success)"];
-  const labels = ["", "Débil", "Media", "Fuerte"];
 
   if (!password) return null;
 
@@ -24,7 +24,7 @@ function PasswordStrength({ password }: { password: string }) {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="flex-1 h-1 rounded-full transition-all duration-300"
+            className="flex-1 h-1.5 rounded-full transition-all duration-300"
             style={{
               background: i < score ? colors[score] : "var(--border)",
             }}
@@ -72,11 +72,11 @@ export default function RegisterPage() {
     setError(null);
 
     if (!passwordsMatch) {
-      setError("Las contraseñas no coinciden.");
+      setError("Las contrasenas no coinciden.");
       return;
     }
     if (!isStrong) {
-      setError("La contraseña no cumple los requisitos mínimos.");
+      setError("La contrasena no cumple los requisitos minimos.");
       return;
     }
 
@@ -106,28 +106,30 @@ export default function RegisterPage() {
 
   if (success) {
     return (
-      <div
-        className="min-h-dvh flex flex-col items-center justify-center px-4 py-12"
-        style={{ background: "var(--bg-base)" }}
-      >
-        <div className="card w-full max-w-sm p-8 flex flex-col items-center gap-6 text-center animate-fade-in-scale">
+      <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-12">
+        <div className="glass-card w-full max-w-sm p-8 flex flex-col items-center gap-6 text-center animate-bounce-in relative overflow-hidden">
+          {/* Decorative watermark */}
+          <div className="absolute -bottom-6 -left-6 opacity-[0.04]" aria-hidden="true">
+            <Pokeball size={100} />
+          </div>
+
           <div
-            className="w-16 h-16 rounded-full flex items-center justify-center animate-float"
+            className="w-16 h-16 rounded-full flex items-center justify-center animate-float relative"
             style={{ background: "rgba(34,197,94,0.15)", border: "1px solid var(--success)" }}
           >
             <CheckCircle2 size={32} style={{ color: "var(--success)" }} />
           </div>
-          <div className="flex flex-col gap-2">
+          <div className="relative flex flex-col gap-2">
             <h2 className="font-bold text-xl" style={{ color: "var(--text-primary)" }}>
               Confirma tu correo
             </h2>
             <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-              Te enviamos un enlace de confirmación a{" "}
+              Te enviamos un enlace de confirmacion a{" "}
               <strong style={{ color: "var(--accent)" }}>{email}</strong>.
               Revisa tu bandeja de entrada para activar tu cuenta.
             </p>
           </div>
-          <Link href="/login" className="btn-primary w-full">
+          <Link href="/login" className="btn-primary w-full relative">
             Ir al login
           </Link>
         </div>
@@ -136,38 +138,42 @@ export default function RegisterPage() {
   }
 
   return (
-    <div
-      className="min-h-dvh flex flex-col items-center justify-center px-4 py-12"
-      style={{ background: "var(--bg-base)" }}
-    >
+    <div className="min-h-dvh flex flex-col items-center justify-center px-4 py-12">
       {/* Logo */}
       <Link
         href="/"
-        className="flex items-center gap-2 font-bold text-lg mb-8 select-none"
+        className="flex items-center gap-3 font-bold text-lg mb-10 select-none group"
         style={{ color: "var(--text-primary)", textDecoration: "none" }}
       >
-        <span
-          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-black"
-          style={{ background: "var(--accent)", color: "#fff" }}
-        >
-          P
+        <Pokeball size={40} className="transition-transform duration-300 group-hover:rotate-[20deg]" />
+        <span className="flex items-center gap-1.5">
+          <span className="font-bold tracking-tight text-xl">Pokelab</span>
+          <span
+            className="text-[0.65rem] font-black uppercase tracking-widest px-2 py-0.5 rounded-md"
+            style={{ background: "var(--accent)", color: "#fff" }}
+          >
+            AI
+          </span>
         </span>
-        <span>Pokelab</span>
-        <span style={{ color: "var(--accent)" }}>AI</span>
       </Link>
 
       {/* Card */}
-      <div className="card w-full max-w-sm p-8 flex flex-col gap-6 animate-fade-in-scale">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-bold text-xl" style={{ color: "var(--text-primary)" }}>
+      <div className="glass-card w-full max-w-sm p-8 flex flex-col gap-6 animate-fade-in-scale relative overflow-hidden">
+        {/* Decorative pokeball watermark */}
+        <div className="absolute -top-8 -right-8 opacity-[0.04]" aria-hidden="true">
+          <Pokeball size={120} />
+        </div>
+
+        <div className="relative flex flex-col gap-1.5">
+          <h1 className="font-bold text-xl text-balance" style={{ color: "var(--text-primary)" }}>
             Crear cuenta
           </h1>
-          <p className="text-sm" style={{ color: "var(--text-muted)" }}>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-muted)" }}>
             Empieza a guardar tus equipos competitivos.
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        <form onSubmit={handleSubmit} className="relative flex flex-col gap-4" noValidate>
           {/* Email */}
           <div className="flex flex-col gap-1.5">
             <label
@@ -175,7 +181,7 @@ export default function RegisterPage() {
               className="text-xs font-semibold uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
-              Correo electrónico
+              Correo electronico
             </label>
             <input
               id="email"
@@ -197,14 +203,14 @@ export default function RegisterPage() {
               className="text-xs font-semibold uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
-              Contraseña
+              Contrasena
             </label>
             <div className="relative">
               <input
                 id="password"
                 type={showPassword ? "text" : "password"}
                 className="input pr-10"
-                placeholder="••••••••"
+                placeholder="--------"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
@@ -216,7 +222,7 @@ export default function RegisterPage() {
                 className="absolute right-3 top-1/2 -translate-y-1/2"
                 style={{ color: "var(--text-muted)", background: "none", border: "none", cursor: "pointer" }}
                 onClick={() => setShowPassword((v) => !v)}
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                aria-label={showPassword ? "Ocultar contrasena" : "Mostrar contrasena"}
               >
                 {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -231,13 +237,13 @@ export default function RegisterPage() {
               className="text-xs font-semibold uppercase tracking-wider"
               style={{ color: "var(--text-muted)" }}
             >
-              Confirmar contraseña
+              Confirmar contrasena
             </label>
             <input
               id="confirm"
               type={showPassword ? "text" : "password"}
               className="input"
-              placeholder="••••••••"
+              placeholder="--------"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               autoComplete="new-password"
@@ -249,7 +255,7 @@ export default function RegisterPage() {
             />
             {confirm && !passwordsMatch && (
               <span className="text-xs animate-fade-in" style={{ color: "var(--danger)" }}>
-                Las contraseñas no coinciden.
+                Las contrasenas no coinciden.
               </span>
             )}
           </div>
@@ -272,33 +278,35 @@ export default function RegisterPage() {
           {/* Submit */}
           <button
             type="submit"
-            className="btn-primary w-full animate-pulse-glow"
+            className="btn-primary w-full"
             disabled={!canSubmit}
             style={{ marginTop: 4 }}
           >
-            <UserPlus size={16} />
+            {loading ? (
+              <Pokeball size={16} className="animate-rotate-pokeball" />
+            ) : (
+              <UserPlus size={16} />
+            )}
             {loading ? "Creando cuenta..." : "Crear cuenta"}
           </button>
         </form>
 
         {/* Divider */}
-        <div className="flex items-center gap-3">
+        <div className="relative flex items-center gap-3">
           <div className="divider flex-1" />
-          <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-            o
-          </span>
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>o</span>
           <div className="divider flex-1" />
         </div>
 
         {/* Login link */}
-        <p className="text-sm text-center" style={{ color: "var(--text-secondary)" }}>
-          {"¿Ya tienes cuenta? "}
+        <p className="relative text-sm text-center" style={{ color: "var(--text-secondary)" }}>
+          {"Ya tienes cuenta? "}
           <Link
             href="/login"
             className="font-semibold"
             style={{ color: "var(--accent)", textDecoration: "none" }}
           >
-            Inicia sesión
+            Inicia sesion
           </Link>
         </p>
       </div>

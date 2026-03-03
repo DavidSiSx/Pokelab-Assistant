@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import type { TeamMember, Build } from "@/types/pokemon";
 import { TypeBadge } from "@/components/ui/TypeBadge";
 import { PokemonSprite } from "@/components/pokemon/PokemonSprite";
 import { StatBar } from "@/components/ui/StatBar";
+import { PokeballOutline } from "@/components/ui/PokeballBg";
 
 interface BuildCardProps {
   pokemon: TeamMember;
@@ -30,19 +32,31 @@ export function BuildCard({ pokemon, build, aiRole, onClose }: BuildCardProps) {
   const totalEvs = EV_STATS.reduce((s, { key }) => s + (build[key as EvKey] ?? 0), 0);
 
   return (
-    <div className="card animate-fade-in-scale" style={{ overflow: "hidden" }}>
+    <div className="glass-card animate-fade-in-scale" style={{ overflow: "hidden" }}>
       {/* Header */}
       <div
-        className="flex items-center gap-4 p-4"
+        className="relative flex items-center gap-4 p-4"
         style={{ borderBottom: "1px solid var(--border)", background: "var(--bg-surface)" }}
       >
-        <PokemonSprite
-          name={pokemon.nombre}
-          spriteUrl={pokemon.sprite_url}
-          size={72}
-          animate
-        />
-        <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+        {/* Decorative watermark */}
+        <div className="absolute top-2 right-2 pointer-events-none" aria-hidden="true">
+          <PokeballOutline size={60} opacity={0.05} />
+        </div>
+
+        <div className="relative">
+          <div
+            className="absolute inset-0 rounded-full opacity-15 blur-md"
+            style={{ background: "var(--accent)" }}
+            aria-hidden="true"
+          />
+          <PokemonSprite
+            name={pokemon.nombre}
+            spriteUrl={pokemon.sprite_url}
+            size={72}
+            animate
+          />
+        </div>
+        <div className="flex flex-col gap-1.5 flex-1 min-w-0 relative z-[1]">
           <h3
             className="font-bold capitalize text-balance"
             style={{ color: "var(--text-primary)", fontSize: "1.1rem" }}
@@ -67,12 +81,12 @@ export function BuildCard({ pokemon, build, aiRole, onClose }: BuildCardProps) {
         </div>
         {onClose && (
           <button
-            className="btn-ghost"
+            className="btn-ghost relative z-[1]"
             style={{ padding: "6px", color: "var(--text-muted)", flexShrink: 0 }}
             onClick={onClose}
             aria-label="Cerrar"
           >
-            ✕
+            <X size={16} />
           </button>
         )}
       </div>
@@ -85,17 +99,25 @@ export function BuildCard({ pokemon, build, aiRole, onClose }: BuildCardProps) {
         {(["build", "evs"] as const).map((t) => (
           <button
             key={t}
-            className="btn-ghost flex-1"
+            className="flex-1 relative transition-colors duration-200"
             style={{
-              borderRadius: 0,
-              borderBottom: tab === t ? `2px solid var(--accent)` : "2px solid transparent",
+              padding: "12px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
               color: tab === t ? "var(--accent)" : "var(--text-muted)",
-              fontWeight: tab === t ? 700 : 400,
-              paddingBlock: "10px",
+              fontWeight: tab === t ? 700 : 500,
+              fontSize: "0.85rem",
             }}
             onClick={() => setTab(t)}
           >
             {t === "build" ? "Build" : "EVs"}
+            {tab === t && (
+              <span
+                className="absolute bottom-0 left-4 right-4 h-[2px] rounded-full"
+                style={{ background: "var(--accent)" }}
+              />
+            )}
           </button>
         ))}
       </div>
@@ -105,9 +127,9 @@ export function BuildCard({ pokemon, build, aiRole, onClose }: BuildCardProps) {
         {tab === "build" ? (
           <div className="flex flex-col gap-3">
             {/* Item */}
-            <Row label="Item" value={build.item || "—"} accent />
-            <Row label="Habilidad" value={build.ability || "—"} />
-            <Row label="Naturaleza" value={build.nature || "—"} />
+            <Row label="Item" value={build.item || "--"} accent />
+            <Row label="Habilidad" value={build.ability || "--"} />
+            <Row label="Naturaleza" value={build.nature || "--"} />
             {build.tera_type && (
               <Row
                 label="Tera Type"
@@ -128,14 +150,14 @@ export function BuildCard({ pokemon, build, aiRole, onClose }: BuildCardProps) {
                   {build.moves.map((move, i) => (
                     <div
                       key={i}
-                      className="px-2.5 py-1.5 rounded-lg text-xs font-medium capitalize"
+                      className="px-3 py-2 rounded-lg text-xs font-medium capitalize transition-colors duration-200"
                       style={{
-                        background: "var(--bg-input)",
+                        background: move ? "var(--bg-input)" : "var(--bg-surface)",
                         color: move ? "var(--text-primary)" : "var(--text-muted)",
-                        border: "1px solid var(--border)",
+                        border: `1px solid ${move ? "var(--border)" : "var(--bg-card-hover)"}`,
                       }}
                     >
-                      {move || "—"}
+                      {move || "--"}
                     </div>
                   ))}
                 </div>
@@ -148,9 +170,10 @@ export function BuildCard({ pokemon, build, aiRole, onClose }: BuildCardProps) {
               className="flex justify-between text-xs mb-1"
               style={{ color: "var(--text-muted)" }}
             >
-              <span>Distribución EVs</span>
+              <span>Distribucion EVs</span>
               <span
-                style={{ color: totalEvs > 510 ? "var(--danger)" : "var(--text-secondary)" }}
+                className="font-bold"
+                style={{ color: totalEvs > 510 ? "var(--danger)" : "var(--accent)" }}
               >
                 {totalEvs} / 510
               </span>

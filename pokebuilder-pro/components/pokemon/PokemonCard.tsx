@@ -5,6 +5,7 @@ import Image from "next/image";
 import { ChevronDown, ChevronUp, Lock, Unlock, X, Shield, Zap, Sword } from "lucide-react";
 import { TypeBadge } from "@/components/ui/TypeBadge";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { PokeballOutline } from "@/components/ui/PokeballBg";
 import type { TeamMember, Build } from "@/types/pokemon";
 
 interface PokemonCardProps {
@@ -43,19 +44,28 @@ export function PokemonCard({
   return (
     <article
       className={`
-        card card-hover relative flex flex-col items-center gap-2 cursor-pointer
-        transition-all duration-200 animate-fade-in
+        glass-card relative flex flex-col items-center gap-2 cursor-pointer
+        transition-all duration-250 animate-fade-in overflow-hidden
         ${compact ? "p-3" : "p-4"}
-        ${selected ? "border-[var(--accent)] shadow-[0_0_0_2px_var(--accent-glow)]" : ""}
+        ${selected ? "ring-2" : ""}
         ${className}
       `}
+      style={{
+        borderColor: selected ? "var(--accent)" : undefined,
+        boxShadow: selected ? `0 0 0 2px var(--accent-glow), 0 4px 20px var(--accent-glow)` : undefined,
+      }}
       onClick={onClick}
       role={onClick ? "button" : "article"}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={(e) => e.key === "Enter" && onClick?.()}
-      aria-label={`${pokemon.nombre} — ${tipos.join("/")} type`}
+      aria-label={`${pokemon.nombre} -- ${tipos.join("/")} type`}
       aria-pressed={selected}
     >
+      {/* Decorative pokeball watermark */}
+      <div className="absolute -bottom-4 -right-4 pointer-events-none" aria-hidden="true">
+        <PokeballOutline size={compact ? 50 : 70} opacity={0.05} />
+      </div>
+
       {/* Top action bar */}
       <div className="absolute top-2 right-2 flex gap-1 z-10">
         {onLock && (
@@ -85,13 +95,18 @@ export function PokemonCard({
       </div>
 
       {/* Sprite */}
-      <div className="relative">
+      <div className="relative z-[1]">
+        <div
+          className="absolute inset-0 rounded-full opacity-20 blur-lg"
+          style={{ background: "var(--accent)" }}
+          aria-hidden="true"
+        />
         <Image
           src={spriteUrl}
           alt={pokemon.nombre}
           width={compact ? 64 : 80}
           height={compact ? 64 : 80}
-          className="object-contain drop-shadow-lg"
+          className="object-contain drop-shadow-lg relative"
           onError={(e) => {
             (e.target as HTMLImageElement).src = "/pokeball-placeholder.png";
           }}
@@ -109,7 +124,7 @@ export function PokemonCard({
 
       {/* Name */}
       <h3
-        className="font-bold text-center text-balance leading-tight"
+        className="font-bold text-center text-balance leading-tight relative z-[1]"
         style={{
           fontSize: compact ? "0.8rem" : "0.95rem",
           color: "var(--text-primary)",
@@ -119,7 +134,7 @@ export function PokemonCard({
       </h3>
 
       {/* Types */}
-      <div className="flex flex-wrap gap-1 justify-center">
+      <div className="flex flex-wrap gap-1 justify-center relative z-[1]">
         {tipos.map((t) => (
           <TypeBadge key={t} type={t} size={compact ? "sm" : "md"} />
         ))}
@@ -127,7 +142,7 @@ export function PokemonCard({
 
       {/* Role */}
       {pokemon.rol && !compact && (
-        <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
+        <p className="text-xs text-center relative z-[1]" style={{ color: "var(--text-muted)" }}>
           {pokemon.rol}
         </p>
       )}
@@ -135,7 +150,7 @@ export function PokemonCard({
       {/* Build preview (compact) */}
       {build && !compact && (
         <div
-          className="w-full flex items-center justify-between mt-1 pt-2"
+          className="w-full flex items-center justify-between mt-1 pt-2 relative z-[1]"
           style={{ borderTop: "1px solid var(--border)" }}
         >
           <div className="flex gap-2">
@@ -171,7 +186,7 @@ export function PokemonCard({
       {/* Expanded build */}
       {showBuild && expanded && build && (
         <div
-          className="w-full rounded-lg p-3 mt-1 flex flex-col gap-2 animate-fade-in"
+          className="w-full rounded-lg p-3 mt-1 flex flex-col gap-2 animate-fade-in relative z-[1]"
           style={{ background: "var(--bg-surface)" }}
         >
           {/* Moves */}

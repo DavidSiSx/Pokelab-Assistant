@@ -4,13 +4,32 @@ import { useState, useCallback } from "react";
 import useSWR from "swr";
 import type { SavedTeam } from "@/types/pokemon";
 import type { SaveTeamRequest, GetTeamsResponse } from "@/types/api";
+import { useAuth } from "@/providers/AuthProvider";
 
-const fetcher = (url: string) => fetch(url).then((r) => r.json());
+/**
+ * Create a fetcher that injects the current Supabase access token.
+ */
+function createAuthFetcher(token: string | null) {
+  return async (url: string) => {
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: "Error de red" }));
+      throw new Error(err.error ?? "Error al obtener equipos");
+    }
+    return res.json();
+  };
+}
 
 export function useTeams() {
+  const { user, session } = useAuth();
+  const token = session?.access_token ?? null;
+
+  // Only fetch teams when the user is logged in
   const { data, error, isLoading, mutate } = useSWR<GetTeamsResponse>(
-    "/api/teams",
-    fetcher,
+    user ? "/api/teams" : null,
+    user ? createAuthFetcher(token) : null,
     { revalidateOnFocus: false }
   );
 
@@ -21,9 +40,12 @@ export function useTeams() {
     async (payload: SaveTeamRequest): Promise<SavedTeam | null> => {
       setSaving(true);
       try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const res = await fetch("/api/teams", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
         });
 
@@ -41,14 +63,17 @@ export function useTeams() {
         setSaving(false);
       }
     },
-    [mutate]
+    [mutate, token]
   );
 
   const deleteTeam = useCallback(
     async (id: string): Promise<void> => {
       setDeleting(id);
       try {
-        const res = await fetch(`/api/teams/${id}`, { method: "DELETE" });
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`/api/teams/${id}`, { method: "DELETE", headers });
         if (!res.ok) {
           const err = await res.json();
           throw new Error(err.error ?? "Error al eliminar");
@@ -69,7 +94,7 @@ export function useTeams() {
         setDeleting(null);
       }
     },
-    [mutate]
+    [mutate, token]
   );
 
   const updateTeam = useCallback(
@@ -82,9 +107,12 @@ export function useTeams() {
       if ("descripcion" in updates) body.descripcion = updates.descripcion;
       if ("isPublic" in updates) body.is_public = updates.isPublic;
 
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
       const res = await fetch(`/api/teams/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify(body),
       });
 
@@ -95,7 +123,7 @@ export function useTeams() {
 
       await mutate();
     },
-    [mutate]
+    [mutate, token]
   );
 
   return {

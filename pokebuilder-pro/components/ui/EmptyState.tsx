@@ -13,41 +13,46 @@ interface EmptyStateProps {
 export function EmptyState({ icon, title, description, action, compact = false }: EmptyStateProps) {
   return (
     <div
-      className={`flex flex-col items-center justify-center text-center ${compact ? "py-8 gap-3" : "py-16 gap-4"}`}
+      className={`card flex flex-col items-center justify-center text-center ${compact ? "py-10 gap-3" : "py-16 gap-5"}`}
+      style={{ borderStyle: "dashed", background: "var(--bg-surface)" }}
     >
       {icon && (
         <div
-          className="flex items-center justify-center rounded-full animate-float"
+          className="flex items-center justify-center rounded-2xl"
           style={{
-            width: compact ? 56 : 72,
-            height: compact ? 56 : 72,
+            width: compact ? 52 : 64,
+            height: compact ? 52 : 64,
             background: "var(--accent-glow)",
             border: "1px solid var(--accent)",
             color: "var(--accent)",
           }}
         >
-          {icon}
+          {typeof icon === "string" ? (
+            <span style={{ fontSize: compact ? "1.4rem" : "1.6rem" }}>{icon}</span>
+          ) : (
+            icon
+          )}
         </div>
       )}
 
-      <div className="flex flex-col gap-1.5 max-w-xs">
+      <div className="flex flex-col gap-2 max-w-sm">
         <h3
-          className={`font-bold text-balance ${compact ? "text-base" : "text-lg"}`}
+          className={`font-bold text-balance ${compact ? "text-sm" : "text-base"}`}
           style={{ color: "var(--text-primary)" }}
         >
           {title}
         </h3>
         {description && (
           <p
-            className="text-sm leading-relaxed text-balance"
-            style={{ color: "var(--text-secondary)" }}
+            className="text-sm leading-relaxed text-balance text-pretty"
+            style={{ color: "var(--text-muted)" }}
           >
             {description}
           </p>
         )}
       </div>
 
-      {action && <div className="mt-2">{action}</div>}
+      {action && <div className="mt-1">{action}</div>}
     </div>
   );
 }

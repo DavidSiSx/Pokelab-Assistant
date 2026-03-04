@@ -43,8 +43,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuggestRespon
     }
 
     // 2. Parsear request
-    const body = (await req.json()) as SuggestRequest;
-    const { lockedTeam, config, slotIndex } = body;
+    const body = (await req.json()) as SuggestRequest & { swapCount?: number };
+    const { lockedTeam, config, slotIndex, swapCount } = body;
 
     if (!config) {
       return NextResponse.json(
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuggestRespon
     const leaderName  = leader?.nombre ?? null;
     const lockedIds   = team.slice(1).map((p) => p.id);
     const lockedNames = team.slice(1).map((p) => p.nombre);
-    const slotsNeeded = Math.max(1, 6 - team.length);
+    const slotsNeeded = swapCount != null ? swapCount : Math.max(1, 6 - team.length);
 
     // 5. Construir pool de candidatos
     const { candidatePool: poolArray, isDynamicMode, detectedCombos, comboItemOverrides } =
@@ -200,22 +200,19 @@ export async function POST(req: NextRequest): Promise<NextResponse<SuggestRespon
     const buildsJson = JSON.stringify(sanitizedRecord, null, 2);
 
     // ─────────────────────────────────────────────────────────────
-    // LLAMADA 2: Reporte general — ~600-900 tokens, no trunca
+    // LLAMADAS 2-3: Reportes general + por-Pokémon (PARALELO)
     // ─────────────────────────────────────────────────────────────
-    console.log("📊 Calling AI for report part 1 (general analysis)...");
-    const reportPart1 = await generateReport(
-      buildReportPromptPart1(confirmedTeam, buildsJson, normalizedConfig, modeModifiers, experiencePrompt),
-      sessionId
-    ) as any;
-
-    // ─────────────────────────────────────────────────────────────
-    // LLAMADA 3: Análisis por Pokémon — ~800-1200 tokens, no trunca
-    // ─────────────────────────────────────────────────────────────
-    console.log("🔍 Calling AI for report part 2 (per-pokemon analysis)...");
-    const reportPart2 = await generateReport(
-      buildReportPromptPart2(confirmedTeam, buildsJson, normalizedConfig, experiencePrompt),
-      sessionId
-    ) as any;
+    console.log("📊📍 Calling AI for reports in parallel...");
+    const [reportPart1, reportPart2] = await Promise.all([
+      generateReport(
+        buildReportPromptPart1(confirmedTeam, buildsJson, normalizedConfig, modeModifiers, experiencePrompt),
+        sessionId
+      ),
+      generateReport(
+        buildReportPromptPart2(confirmedTeam, buildsJson, normalizedConfig, experiencePrompt),
+        sessionId
+      ),
+    ]) as any[];
 
     // Merge de los dos reportes en uno completo
     const reportRaw: AIReportResponse = {

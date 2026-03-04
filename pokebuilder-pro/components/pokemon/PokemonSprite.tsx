@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface PokemonSpriteProps {
   name: string;
@@ -11,13 +11,6 @@ interface PokemonSpriteProps {
   className?: string;
 }
 
-/**
- * Sprite resolution order:
- *  1. spriteUrl from DB
- *  2. PokeAPI official sprite by nationalDex number
- *  3. PokeAPI sprite by slug (name normalized)
- *  4. Generic Pokéball placeholder SVG
- */
 export function PokemonSprite({
   name,
   spriteUrl,
@@ -26,34 +19,51 @@ export function PokemonSprite({
   animate = false,
   className = "",
 }: PokemonSpriteProps) {
-  // Build the fallback chain once
   const fallbacks = buildFallbacks(name, spriteUrl, nationalDex);
+  // FIX hydration: always start at 0, render placeholder on server
   const [idx, setIdx] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  function handleError() {
+    setIdx((i) => Math.min(i + 1, fallbacks.length - 1));
+  }
 
   const src = fallbacks[idx];
 
-  function handleError() {
-    if (idx + 1 < fallbacks.length) {
-      setIdx((i) => i + 1);
-    }
-  }
-
-  if (!src) {
+  // Render placeholder on SSR to avoid hydration mismatch from className changes
+  if (!mounted || !src) {
     return <PokeballPlaceholder size={size} className={className} />;
   }
 
   return (
     <img
       src={src}
-      alt={name}
+      alt={name ?? "Pokemon"}
       width={size}
       height={size}
       onError={handleError}
       draggable={false}
-      className={`object-contain select-none ${animate ? "animate-float" : ""} ${className}`}
-      style={{ imageRendering: "pixelated", width: size, height: size }}
+      className={`object-contain select-none ${className}`}
+      style={{
+        imageRendering: "pixelated",
+        width: size,
+        height: size,
+        display: "block",
+        animation: animate ? "float 3s ease-in-out infinite" : "none",
+      }}
     />
   );
+}
+
+function nameToSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/--+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function buildFallbacks(
@@ -63,34 +73,35 @@ function buildFallbacks(
 ): string[] {
   const list: string[] = [];
 
-  // 1. DB sprite
   if (spriteUrl) list.push(spriteUrl);
 
-  // 2. PokeAPI by dex number (official front default)
-  if (nationalDex && nationalDex > 0) {
+  const validDex = nationalDex && nationalDex > 0 && nationalDex <= 1025;
+
+  if (validDex) {
     list.push(
       `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${nationalDex}.png`
     );
-    // also shiny as second option
+  }
+
+  const slug = name ? nameToSlug(name) : "";
+  if (slug) {
+    list.push(`https://img.pokemondb.net/sprites/home/normal/${slug}.png`);
+  }
+
+  if (validDex) {
     list.push(
-      `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${nationalDex}.png`
+      `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${nationalDex}.png`
     );
   }
 
-  // 3. PokeAPI by slug
-  if (name) {
-    const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    list.push(`https://pokeapi.co/api/v2/pokemon/${slug}/`); // won't work as img, skip
-    // Use sprites CDN directly
-    list.push(
-      `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${nationalDex ?? 0}.png`
-    );
+  if (slug) {
+    list.push(`https://img.pokemondb.net/sprites/black-white/anim/normal/${slug}.gif`);
   }
 
-  return list.filter(Boolean).filter((u) => !u.includes("/api/v2/"));
+  return list.filter(Boolean);
 }
 
-function PokeballPlaceholder({ size, className }: { size: number; className?: string }) {
+export function PokeballPlaceholder({ size, className }: { size: number; className?: string }) {
   return (
     <svg
       width={size}
@@ -98,7 +109,7 @@ function PokeballPlaceholder({ size, className }: { size: number; className?: st
       viewBox="0 0 40 40"
       className={className}
       aria-hidden="true"
-      style={{ opacity: 0.25 }}
+      style={{ opacity: 0.22, display: "block", flexShrink: 0 }}
     >
       <circle cx="20" cy="20" r="19" stroke="currentColor" strokeWidth="2" fill="none" />
       <line x1="1" y1="20" x2="39" y2="20" stroke="currentColor" strokeWidth="2" />

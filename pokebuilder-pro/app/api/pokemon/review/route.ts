@@ -1,142 +1,137 @@
-import { NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 
-const API_KEY = process.env.GOOGLE_AI_KEY_1 || process.env.GOOGLE_AI_KEY_2 || "";
-const genAI   = new GoogleGenerativeAI(API_KEY);
+// ── Modelos válidos en orden de preferencia ─────────────────────────────────
+// gemini-1.5-flash-8b fue deprecado; usar 2.5-flash como principal
+const GEMINI_MODELS = [
+  "gemini-2.5-flash",
+  "gemini-2.0-flash",
+  "gemini-1.5-flash",
+];
 
-// Modelos existentes en orden de preferencia
-const MODEL_PRIORITY = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+async function callGemini(prompt: string, apiKey: string, model: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.5,
+        maxOutputTokens: 4096,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
 
-async function generateWithFallback(prompt: string) {
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw Object.assign(new Error(err?.error?.message ?? res.statusText), { status: res.status });
+  }
+  const data = await res.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error("No text in Gemini response");
+  return text;
+}
+
+async function generateWithFallback(prompt: string): Promise<string> {
+  const keys = [process.env.GOOGLE_AI_KEY_1, process.env.GOOGLE_AI_KEY_2].filter(Boolean) as string[];
+  if (!keys.length) throw new Error("No Gemini API key configured");
+
+  const attempts: Array<{ key: string; model: string }> = [];
+  for (const model of GEMINI_MODELS) {
+    for (const key of keys) {
+      attempts.push({ key, model });
+    }
+  }
+
   let lastError: unknown;
-  for (const modelName of MODEL_PRIORITY) {
+  for (const { key, model } of attempts) {
     try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      return await model.generateContent(prompt);
-    } catch (error: any) {
-      lastError = error;
-      if (error.status === 429 || error.status === 404) continue;
-      throw error;
+      const result = await callGemini(prompt, key, model);
+      console.log(`✅ Review AI succeeded with ${model}`);
+      return result;
+    } catch (err: any) {
+      lastError = err;
+      const status = err?.status ?? 0;
+      // Only continue on rate-limit or not-found; throw others immediately
+      if (status !== 429 && status !== 404 && status !== 503) throw err;
+      console.warn(`⚠️ Review ${model} failed (${status}), trying next...`);
     }
   }
   throw lastError;
 }
 
-const ELITE_COMPETITIVE_RULES = `
-  CRITERIOS DE PENALIZACIÓN SEVERA (RESTA PUNTOS SI EL USUARIO FALLA AQUÍ):
-  - REGLA CHOICE / ASSAULT VEST: Si un Pokémon lleva "Choice Band/Specs/Scarf" o "Assault Vest",
-    SUS 4 MOVIMIENTOS DEBEN SER DE DAÑO DIRECTO. Si tienen Protect o moves de estado con estos objetos,
-    asume que el usuario es novato y penalízalo.
-  - EVIOLITE: Pre-evoluciones viables (Porygon2, Dusclops, Clefairy) sin Eviolite son un error táctico crítico.
-  - OBJETOS EXCLUSIVOS: Pikachu sin Light Ball, o Marowak sin Thick Club, es un fallo garrafal.
-  - SINERGIAS DE CLIMA/TERRENO: Si hay un setter (Drizzle/Drought) pero no hay abusadores
-    (Swift Swim/Chlorophyll), el clima está desperdiciado.
-  - CONTROL DE VELOCIDAD: Equipos sin Tailwind, Trick Room, Icy Wind o Choice Scarf
-    son presa fácil en el meta moderno.
-`;
+const REVIEW_PROMPT = (teamDesc: string, format: string) => `
+Eres analista de Pokémon competitivo nivel Campeonato Mundial. Sé directo y específico.
+Formato: ${format}
 
-export async function POST(request: Request) {
+EQUIPO:
+${teamDesc}
+
+REGLAS DE PENALIZACIÓN:
+- Choice item + moves de estado/Protect = error grave
+- Setter de clima sin abusadores = clima desperdiciado
+- Sin control de velocidad (Tailwind/TR/Scarf/Icy Wind) = debilidad grave
+- Doble debilidad x4 a un tipo común = fallo de cobertura
+
+RESPONDE SOLO JSON VÁLIDO, sin texto extra:
+{
+  "score": 72,
+  "grade": "B+",
+  "analysis": "Análisis directo. Máx 2 frases.",
+  "weakPoints": ["Debilidad específica 1", "Debilidad 2", "Debilidad 3"],
+  "suggestions": ["Mejora accionable 1", "Mejora 2", "Mejora 3"],
+  "metaVerdict": "Veredicto meta. Máx 1 frase.",
+  "categories": {
+    "offensiveCoverage": { "score": 80, "label": "Cobertura Ofensiva", "desc": "Breve." },
+    "defensiveSynergy":  { "score": 65, "label": "Sinergia Defensiva", "desc": "Breve." },
+    "speedControl":      { "score": 70, "label": "Control Velocidad",  "desc": "Breve." },
+    "leadsAndCore":      { "score": 75, "label": "Leads y Core",       "desc": "Breve." },
+    "itemSynergy":       { "score": 80, "label": "Sinergia de Items",  "desc": "Breve." },
+    "consistency":       { "score": 70, "label": "Consistencia",       "desc": "Breve." },
+    "metaViability":     { "score": 65, "label": "Viabilidad Meta",    "desc": "Breve." }
+  },
+  "pokemonRatings": {
+    "NombrePokemon": { "score": 75, "comment": "Rol claro. Máx 10 palabras." }
+  }
+}`.trim();
+
+export async function POST(request: NextRequest) {
   try {
-    // Auth
-    const { user, error: authError } = await requireAuth();
+    const { user, error: authError } = await requireAuth(request);
     if (authError) return authError;
 
-    // Rate limit centralizado
     const limit = checkRateLimit(user!.id, "review");
     if (!limit.allowed) {
-      return NextResponse.json(
-        { error: "RATE_LIMITED", message: limit.message },
-        { status: 429 }
-      );
+      return NextResponse.json({ error: "RATE_LIMITED", message: limit.message }, { status: 429 });
     }
 
-    const { team, format, mechanics } = await request.json();
-
-    if (!API_KEY) {
-      return NextResponse.json({ error: "Falta API Key de Gemini" }, { status: 500 });
-    }
+    const body = await request.json();
+    const { team, format } = body;
 
     if (!team || !Array.isArray(team) || team.length === 0 || team.length > 6) {
-      return NextResponse.json(
-        { error: "Equipo inválido. Debe tener entre 1 y 6 Pokémon." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Equipo inválido (1-6 Pokémon)." }, { status: 400 });
     }
 
-    const teamDescription = team.map((p: any, i: number) => `
-${i + 1}. ${p.name}
-   - Item: ${p.item || "Ninguno"}
-   - Ability: ${p.ability || "No especificada"}
-   - Nature: ${p.nature || "No especificada"}
-   - Tera Type: ${p.teraType || "No especificado"}
-   - Moves: ${(p.moves || []).filter(Boolean).join(", ") || "No especificados"}
-   - EVs: ${p.evs || "No especificados"}
-   - Mechanic: ${p.mechanic || "Ninguna"}`
+    const teamDesc = team.map((p: any, i: number) =>
+      `${i + 1}. ${p.name || p.nombre} @ ${p.item || "—"} | Ability: ${p.ability || "—"} | Nature: ${p.nature || "—"} | Tera: ${p.teraType || "—"} | Moves: ${(p.moves ?? []).join(", ") || "—"}`
     ).join("\n");
 
-    const mechanicsNote = mechanics
-      ? `Mecánicas habilitadas: ${Object.entries(mechanics).filter(([_, v]) => v).map(([k]) => k).join(", ")}`
-      : "";
+    const raw = await generateWithFallback(REVIEW_PROMPT(teamDesc, format || "VGC 2025 Reg H"));
 
-    const prompt = `
-Eres el Juez Principal y Head Coach de un campeonato mundial de Pokémon.
-FORMATO: ${format || "VGC Doubles"}
-${mechanicsNote}
+    // Strip possible markdown fences
+    const clean = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+    const reviewData = JSON.parse(clean);
 
-EQUIPO PROPUESTO:
-${teamDescription}
-
-${ELITE_COMPETITIVE_RULES}
-
-DEVUELVE SOLO JSON con este formato exacto (TODAS LAS PUNTUACIONES SON SOBRE 100):
-{
-  "score": 74,
-  "grade": "B+",
-  "categories": {
-    "sinergia":      { "score": 80, "label": "Sinergia de Equipo",   "desc": "Evaluación de la sinergia" },
-    "cobertura":     { "score": 70, "label": "Cobertura Ofensiva",   "desc": "Evaluación de cobertura de tipos" },
-    "speedControl":  { "score": 60, "label": "Control de Velocidad", "desc": "Tailwind/Trick Room/Scarf presentes o no" },
-    "matchupSpread": { "score": 75, "label": "Spread de Matchups",   "desc": "Respuesta a amenazas del meta" },
-    "itemsOptim":    { "score": 85, "label": "Optimización Items",   "desc": "Objetos correctos o no" },
-    "consistencia":  { "score": 65, "label": "Consistencia",         "desc": "Fiabilidad del plan de juego" },
-    "originalidad":  { "score": 55, "label": "Factor Sorpresa",      "desc": "Predictibilidad en el meta" }
-  },
-  "analysis": "2-3 párrafos sobre Win Conditions y viabilidad en el meta actual.",
-  "weakPoints": ["Debilidad crítica 1", "Debilidad 2", "Debilidad 3"],
-  "suggestions": ["Sugerencia concreta 1", "Sugerencia 2", "Sugerencia 3"],
-  "pokemonRatings": {
-    "NombrePokemon": { "score": 82, "comment": "Comentario agresivo pero útil sobre la build..." }
-  },
-  "metaVerdict": "Una frase corta y contundente. Máx 15 palabras."
-}
-
-REGLAS:
-- score general: promedio ponderado de las 7 categorías, número entero.
-- grade: A+ A A- B+ B B- C+ C D F (90+=A+, 85+=A, 80+=A-, 75+=B+, 70+=B, 65+=B-, 60+=C+, 55+=C, 45+=D, <45=F).
-- Cada categoría: score entero 0-100.
-- Sé HONESTO y BRUTAL: un equipo sin Protect en Doubles merece speedControl < 40.
-    `.trim();
-
-    const result = await generateWithFallback(prompt);
-    const text = result.response.text();
-
-    // Extrae el JSON aunque venga envuelto en ```json ... ```
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON inválido en respuesta de IA");
-
-    const reviewData = JSON.parse(jsonMatch[0]);
     return NextResponse.json(reviewData);
 
-  } catch (error: any) {
-    if (error.status === 429) {
-      return NextResponse.json(
-        { error: "CUOTA_AGOTADA", message: "Cuota de Gemini excedida. Espera un minuto." },
-        { status: 429 }
-      );
+  } catch (err: any) {
+    if (err?.status === 429) {
+      return NextResponse.json({ error: "CUOTA_AGOTADA", message: "Gemini quota excedida. Espera un momento." }, { status: 429 });
     }
-    console.error("Error en /api/pokemon/review:", error);
-    return NextResponse.json({ error: "Fallo en la evaluación del equipo." }, { status: 500 });
+    console.error("Error en /api/pokemon/review:", err);
+    return NextResponse.json({ error: "Fallo en la evaluación. Intenta de nuevo." }, { status: 500 });
   }
 }

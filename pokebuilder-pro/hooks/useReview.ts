@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import type { TeamMember } from "@/types/pokemon";
+import { createBrowserClient } from "@/lib/supabase/client";
 
 export interface ReviewCategory {
   score: number;
@@ -39,7 +40,6 @@ export function useReview() {
       setLoading(true);
       setError(null);
 
-      // Map team + builds to review API format
       const teamPayload = team.map((p) => {
         const build = builds[String(p.id)] ?? {};
         return {
@@ -54,14 +54,26 @@ export function useReview() {
       });
 
       try {
+        // Get auth token from Supabase browser client
+        const supabase = createBrowserClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
         const res = await fetch("/api/pokemon/review", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify({ team: teamPayload, format }),
         });
 
         if (!res.ok) {
-          const err = await res.json();
+          const err = await res.json().catch(() => ({ error: "Error desconocido" }));
+          // User-friendly error for 401
+          if (res.status === 401) {
+            throw new Error("Debes iniciar sesión para analizar equipos.");
+          }
           throw new Error(err.error ?? "Error al analizar equipo");
         }
 

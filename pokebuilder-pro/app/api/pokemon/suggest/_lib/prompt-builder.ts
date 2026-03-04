@@ -468,28 +468,58 @@ export function buildSelectionPrompt(
   itemClauseRule: string,
   comboPrompt: string = "",
 ): string {
+  const isVGC = (config.format || "").toLowerCase().includes("vgc") ||
+                (config.format || "").toLowerCase().includes("doubles");
+  const isMonotype = config.isMonotype && config.monoTypeSelected;
+
+  const diversityRules = isMonotype
+    ? `MODO MONOTYPE ${config.monoTypeSelected?.toUpperCase()}: Todos los Pokémon DEBEN ser de tipo ${config.monoTypeSelected}.
+  Aun así, diversifica los ROLES: sweeper físico, especial, soporte, wall, pivot.
+  Diversifica los MOVES para cubrir debilidades del tipo con ataques de cobertura.`
+    : `DIVERSIDAD OBLIGATORIA (regla anti-monotype):
+  - PROHIBIDO tener 4+ Pokémon del mismo tipo en el equipo.
+  - El equipo DEBE tener Pokémon de AL MENOS 4 tipos diferentes.
+  - Los moves del equipo deben cubrir AL MENOS 4 tipos de ataque distintos.
+  - ROLES ÚNICOS: Sweeper físico, Sweeper especial, Pivot/Soporte, Wall, Setter.
+    No repitas el mismo rol dos veces si hay alternativas en el pool.`;
+
   return `
 Eres el Analista Táctico Principal de un equipo campeón mundial de Pokémon.
+Tu objetivo es crear EL MEJOR EQUIPO COMPETITIVO POSIBLE, no solo uno que funcione.
 ${modeModifiers}
 ${comboPrompt ? `\n${comboPrompt}\n` : ""}
-DIRECTIVA TÁCTICA: "${config.customStrategy || "Crea el equipo más sinérgico y competitivo posible"}"
+
+DIRECTIVA TÁCTICA: "${config.customStrategy || "Crea el equipo más sinérgico, diverso y competitivo posible"}"
 NIVEL DE ANÁLISIS: ${experiencePrompt}
-${leaderName ? `\nLÍDER DEL EQUIPO: ${leaderName}.${leaderConstraints}` : ""}
+FORMATO: ${config.format || "VGC"}
+
+${leaderName ? `LÍDER DEL EQUIPO: ${leaderName}.${leaderConstraints}
+⚠️ El líder SIEMPRE debe recibir un build COMPLETO con item, ability, nature y 4 moves válidos.` : ""}
 ${lockedString ? `\nPOKÉMON FIJADOS (NO cambiar):\n${lockedString}` : ""}
 
-CANDIDATOS DISPONIBLES (${candidatesString.split("\n").length} Pokémon):
-NOTA: Pokémon marcados [SIN MEGA] NUNCA pueden tener Mega Stone.
+CANDIDATOS DISPONIBLES:
 ${candidatesString}
 
-━━━ REGLAS ESTRICTAS ━━━
-1. LEGALIDAD: NUNCA inventes movimientos, habilidades o items inexistentes.
+━━━ REGLAS ESTRICTAS (IRROMPIBLES) ━━━
+
+${diversityRules}
+
+${isVGC ? `REGLAS VGC/DOUBLES:
+  - Al menos 3-4 Pokémon con Protect.
+  - Al menos 1 Redirector (Follow Me, Rage Powder) o un Fake Out.
+  - Spread moves (Discharge, Surf, Earthquake, Rock Slide) donde sea legal.
+  - Evalúa leads: los 2 primeros deben tener buena sinergia inmediata.` : ""}
+
+LEGALIDAD:
+  - NUNCA inventes movimientos, habilidades o items que no existen en los juegos.
+  - NUNCA uses un Pokémon que no esté en el listado de CANDIDATOS.
 ${itemClauseRule}
+
 ${ELITE_COMPETITIVE_RULES}
-6. SOLO usa IDs del listado de CANDIDATOS. NUNCA inventes IDs externos.
-   SELECCIONA EXACTAMENTE ${slotsNeeded} IDs DISTINTOS. PROHIBIDO REPETIR IDs.
-7. RESPETA TODAS LAS PROHIBICIONES. Son absolutas e innegociables.
-8. BUILDS: Para cada ID incluye item, ability, nature, moves (exactamente 4), 
-   ev_hp, ev_atk, ev_def, ev_spa, ev_spd, ev_spe (suma máx 510, cada uno máx 252).
+
+SELECCIONA EXACTAMENTE ${slotsNeeded} IDs DISTINTOS del pool.
+Para cada ID, incluye build COMPLETA con item, ability, nature, moves (exactamente 4),
+ev_hp, ev_atk, ev_def, ev_spa, ev_spd, ev_spe (suma máx 510, cada uno máx 252).
 
 DEVUELVE SOLO JSON VÁLIDO (sin markdown, sin texto extra):
 {
@@ -502,7 +532,9 @@ DEVUELVE SOLO JSON VÁLIDO (sin markdown, sin texto extra):
       "moves": ["move1", "move2", "move3", "move4"],
       "ev_hp": 4, "ev_atk": 0, "ev_def": 0, "ev_spa": 252, "ev_spd": 0, "ev_spe": 252,
       "iv_atk": 0,
-      "teraType": "fire"
+      "teraType": "fire",
+      "role": "Special Sweeper",
+      "reasoning": "Cubre el hueco de tipo Fuego del equipo y actúa como wallbreaker especial."
     }
   }
 }`.trim();

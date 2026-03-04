@@ -3,93 +3,88 @@
 import { useState, useMemo, useCallback } from "react";
 import { useReview } from "@/hooks/useReview";
 import type { TeamMember, Build } from "@/types/pokemon";
-import { StatBar } from "@/components/ui/StatBar";
 import { PokemonSprite } from "@/components/pokemon/PokemonSprite";
-import { BuildCard } from "@/components/pokemon/BuildCard";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { TypeBadge } from "@/components/ui/TypeBadge";
 import { WeaknessBar } from "@/components/builder/WeaknessBar";
 import { WeaknessMatrix } from "@/components/builder/WeaknessMatrix";
-import { PokeballPattern, Pokeball } from "@/components/ui/PokeballBg";
+import { PokeballPatternDense } from "@/components/ui/PokeballBg";
 import { LeaderSearch } from "@/components/builder/LeaderSearch";
+import { ManualBuildModal } from "@/components/review/ManualBuildModal";
+import { TypeBadge } from "@/components/ui/TypeBadge";
 import { getTeamWeaknessProfile } from "@/utils/type-chart";
 import {
   ShieldCheck, Trophy, TrendingDown, Lightbulb,
-  ClipboardCopy, ClipboardPaste, Plus, X, Trash2,
-  FileText, Users, ChevronDown,
+  ClipboardPaste, Plus, X, Trash2, FileText,
+  ChevronDown, ChevronUp, Pencil, Download, Upload, Search,
 } from "lucide-react";
+
+/* ── custom scrollbar CSS ──────────────────────────────────── */
+const SCROLL_STYLE = `
+  .rv-scroll::-webkit-scrollbar{width:4px;height:4px}
+  .rv-scroll::-webkit-scrollbar-track{background:transparent}
+  .rv-scroll::-webkit-scrollbar-thumb{background:var(--accent);border-radius:99px;opacity:.5}
+  .rv-scroll::-webkit-scrollbar-thumb:hover{opacity:1}
+`;
 
 /* ── Constants ──────────────────────────────────────────── */
 const FORMATS = [
-  "VGC 2025 Regulation H",
-  "VGC 2024 Regulation G",
-  "National Dex",
-  "National Dex Doubles",
-  "OU Singles",
-  "Doubles OU",
-  "Little Cup",
-  "Ubers",
+  "VGC 2025 Regulation H","VGC 2024 Regulation G",
+  "National Dex","National Dex Doubles",
+  "OU Singles","Doubles OU","Little Cup","Ubers","Random Battle",
 ];
 
 const GRADE_COLOR: Record<string, string> = {
-  "A+": "var(--success)", A: "var(--success)", "A-": "var(--success)",
-  "B+": "var(--warning)", B: "var(--warning)", "B-": "var(--warning)",
-  "C+": "var(--accent)",  C: "var(--accent)",
-  D: "var(--danger)", F: "var(--danger)",
+  "A+":"var(--success)",A:"var(--success)","A-":"var(--success)",
+  "B+":"var(--warning)",B:"var(--warning)","B-":"var(--warning)",
+  "C+":"var(--accent)",C:"var(--accent)",
+  D:"var(--danger)",F:"var(--danger)",
 };
 
-/* ── Showdown parser ────────────────────────────────────── */
+type InputMode = "search" | "paste" | "manual";
+
+/* ── Showdown helpers ───────────────────────────────────── */
 function parseShowdownPaste(paste: string): { team: TeamMember[]; builds: Record<string, Build> } {
   const team: TeamMember[] = [];
   const builds: Record<string, Build> = {};
-  const blocks = paste.trim().split(/\n\s*\n/);
-
-  blocks.forEach((block, idx) => {
+  paste.trim().split(/\n\s*\n/).forEach((block, idx) => {
     const lines = block.trim().split("\n");
     if (!lines[0]) return;
-    const firstLine = lines[0].trim();
-    const atSplit = firstLine.split(" @ ");
+    const atSplit = lines[0].trim().split(" @ ");
     const rawName = atSplit[0].replace(/\s*\(.*?\)\s*/g, "").trim();
     const item = atSplit[1]?.trim() ?? "";
-
-    let ability = "", nature = "", teraType = "";
+    let ability="", nature="", teraType="";
     const moves: string[] = [];
-    let evHp = 0, evAtk = 0, evDef = 0, evSpa = 0, evSpd = 0, evSpe = 0;
-
-    for (let i = 1; i < lines.length; i++) {
+    let evHp=0,evAtk=0,evDef=0,evSpa=0,evSpd=0,evSpe=0;
+    for (let i=1; i<lines.length; i++) {
       const line = lines[i].trim();
-      if (line.startsWith("Ability:"))    ability  = line.replace("Ability:", "").trim();
-      else if (line.endsWith("Nature"))   nature   = line.replace("Nature", "").trim();
-      else if (line.startsWith("Tera Type:")) teraType = line.replace("Tera Type:", "").trim();
+      if (line.startsWith("Ability:")) ability = line.replace("Ability:","").trim();
+      else if (line.endsWith("Nature")) nature = line.replace("Nature","").trim();
+      else if (line.startsWith("Tera Type:")) teraType = line.replace("Tera Type:","").trim();
       else if (line.startsWith("EVs:")) {
-        line.replace("EVs:", "").trim().split("/").forEach((p) => {
+        line.replace("EVs:","").trim().split("/").forEach(p => {
           const m = p.trim().match(/(\d+)\s*(HP|Atk|Def|SpA|SpD|Spe)/i);
           if (!m) return;
           const v = parseInt(m[1]);
-          switch (m[2].toLowerCase()) {
-            case "hp": evHp = v; break; case "atk": evAtk = v; break;
-            case "def": evDef = v; break; case "spa": evSpa = v; break;
-            case "spd": evSpd = v; break; case "spe": evSpe = v; break;
+          switch(m[2].toLowerCase()) {
+            case"hp":evHp=v;break; case"atk":evAtk=v;break; case"def":evDef=v;break;
+            case"spa":evSpa=v;break; case"spd":evSpd=v;break; case"spe":evSpe=v;break;
           }
         });
       } else if (line.startsWith("- ")) moves.push(line.slice(2).trim());
     }
-
     if (!rawName) return;
-    const id = Date.now() + idx;
-    team.push({ id, nombre: rawName, tipo1: "", tipo2: null });
-    builds[String(id)] = { item, ability, nature, moves, tera_type: teraType || undefined,
-      ev_hp: evHp, ev_atk: evAtk, ev_def: evDef, ev_spa: evSpa, ev_spd: evSpd, ev_spe: evSpe };
+    const id = Math.floor(Math.random() * 1900000) + idx + 1;
+    team.push({ id, nombre:rawName, tipo1:"", tipo2:null });
+    builds[String(id)] = { item, ability, nature, moves, tera_type:teraType||undefined,
+      ev_hp:evHp, ev_atk:evAtk, ev_def:evDef, ev_spa:evSpa, ev_spd:evSpd, ev_spe:evSpe };
   });
-
   return { team, builds };
 }
 
 function buildShowdownExport(team: TeamMember[], builds: Record<string, Build>): string {
-  const lines: string[] = [];
-  team.forEach((p) => {
+  return team.map(p => {
     const b = builds[String(p.id)];
-    lines.push(`${p.nombre}${b?.item ? ` @ ${b.item}` : ""}`);
+    const lines = [`${p.nombre}${b?.item ? ` @ ${b.item}` : ""}`];
     if (b?.ability) lines.push(`Ability: ${b.ability}`);
     if (b?.tera_type) lines.push(`Tera Type: ${b.tera_type}`);
     const evParts = [
@@ -99,110 +94,144 @@ function buildShowdownExport(team: TeamMember[], builds: Record<string, Build>):
     ].filter(Boolean);
     if (evParts.length) lines.push(`EVs: ${evParts.join(" / ")}`);
     if (b?.nature) lines.push(`${b.nature} Nature`);
-    b?.moves?.filter(Boolean).forEach((m) => lines.push(`- ${m}`));
-    lines.push("");
-  });
-  return lines.join("\n");
+    b?.moves?.filter(Boolean).forEach(m => lines.push(`- ${m}`));
+    return lines.join("\n");
+  }).join("\n\n");
 }
 
-/* ── Team Slot Mini ─────────────────────────────────────── */
-function TeamSlotMini({
-  index, pokemon, build, selected, onSelect, onRemove,
-}: {
+/* ── TeamSlotMini — FIX: no button-in-button, use div role=button ── */
+function TeamSlotMini({ index, pokemon, build, selected, onSelect, onRemove, onEdit }: {
   index: number;
   pokemon: TeamMember | null;
   build?: Build;
   selected: boolean;
   onSelect: (i: number) => void;
   onRemove: (i: number) => void;
+  onEdit?: (i: number) => void;
 }) {
   if (!pokemon) {
     return (
-      <div
-        style={{
-          height: 90,
-          borderRadius: "var(--radius-lg)",
-          border: "2px dashed var(--border)",
-          background: "var(--bg-input)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "var(--text-muted)",
-          fontSize: "0.7rem",
-          opacity: 0.5,
-        }}
-      >
-        Slot vacío
+      <div style={{
+        borderRadius:10, border:"1.5px dashed var(--border)",
+        display:"flex", alignItems:"center", justifyContent:"center",
+        minHeight:90, opacity:0.4,
+      }}>
+        <Plus size={16} style={{color:"var(--text-muted)"}}/>
       </div>
     );
   }
 
   return (
-    <button
+    /* outer: div role=button (NOT button) to allow inner interactive elements */
+    <div role="button" tabIndex={0}
       onClick={() => onSelect(index)}
+      onKeyDown={e => { if (e.key==="Enter"||e.key===" ") onSelect(index); }}
+      className="relative flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-150 cursor-pointer"
       style={{
-        position: "relative",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 4,
-        padding: "8px 6px",
-        borderRadius: "var(--radius-lg)",
-        border: `2px solid ${selected ? "var(--accent)" : "var(--border)"}`,
-        background: selected ? "var(--accent-glow)" : "var(--bg-card)",
-        cursor: "pointer",
-        transition: "all 0.15s",
-        boxShadow: selected ? "0 0 0 1px var(--accent-glow)" : "none",
-        minHeight: 90,
-      }}
-    >
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemove(index); }}
-        style={{
-          position: "absolute", top: 4, right: 4,
-          padding: 2, background: "transparent", border: "none",
-          cursor: "pointer", color: "var(--text-muted)",
-          borderRadius: 4, display: "flex",
-        }}
-      >
-        <X size={11} />
-      </button>
-      <PokemonSprite name={pokemon.nombre} spriteUrl={pokemon.sprite_url} size={44} animate={selected} />
-      <span style={{ fontSize: "0.65rem", fontWeight: 600, color: "var(--text-primary)", textTransform: "capitalize", textAlign: "center", lineHeight: 1.2, maxWidth: "100%" }}>
+        border:`1.5px solid ${selected?"var(--accent)":"var(--border)"}`,
+        background:selected?"var(--accent-glow)":"var(--bg-card)",
+        boxShadow:selected?"0 0 0 1px var(--accent-glow)":"none",
+        minHeight:90,
+      }}>
+      {/* Remove — div role=button, NOT button */}
+      <div role="button" tabIndex={0}
+        onClick={e => { e.stopPropagation(); onRemove(index); }}
+        onKeyDown={e => { if(e.key==="Enter"){e.stopPropagation();onRemove(index);} }}
+        className="absolute top-1.5 right-1.5 p-1 rounded cursor-pointer"
+        style={{background:"rgba(0,0,0,0.35)",color:"var(--text-muted)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>
+        <X size={9}/>
+      </div>
+      {/* Edit pencil */}
+      {onEdit && (
+        <div role="button" tabIndex={0}
+          onClick={e => { e.stopPropagation(); onEdit(index); }}
+          onKeyDown={e => { if(e.key==="Enter"){e.stopPropagation();onEdit(index);} }}
+          title="Editar build"
+          className="absolute top-1.5 left-1.5 p-1 rounded cursor-pointer"
+          style={{background:"var(--bg-input)",border:"1px solid var(--border)",color:"var(--accent)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2}}>
+          <Pencil size={9}/>
+        </div>
+      )}
+      {/* Sprite — fixed size so it doesn't clip */}
+      <div style={{width:48,height:48,display:"flex",alignItems:"center",justifyContent:"center",marginTop:onEdit?6:0}}>
+        <PokemonSprite name={pokemon.nombre} spriteUrl={pokemon.sprite_url} size={44} animate={selected}/>
+      </div>
+      <span style={{fontSize:"0.65rem",fontWeight:600,color:"var(--text-primary)",textTransform:"capitalize",textAlign:"center",lineHeight:1.2,width:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",padding:"0 4px"}}>
         {pokemon.nombre}
       </span>
       {build?.item && (
-        <span style={{ fontSize: "0.55rem", color: "var(--text-muted)", textAlign: "center" }}>
+        <span style={{fontSize:"0.55rem",color:"var(--text-muted)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%",padding:"0 4px"}}>
           @ {build.item}
         </span>
       )}
-    </button>
+    </div>
+  );
+}
+
+/* ── Context Panel ──────────────────────────────────────── */
+function ContextPanel({ value, onChange }: { value:string; onChange:(v:string)=>void }) {
+  const [open, setOpen] = useState(true);
+  const tags = ["Sun team","Trick Room ofensivo","Stall / balance","Tailwind sweepers","Hyper offense","Weather-free"];
+  return (
+    <div className="glass-card" style={{overflow:"hidden"}}>
+      <button onClick={()=>setOpen(o=>!o)} className="w-full flex items-center justify-between px-4 py-3"
+        style={{background:"transparent",border:"none",cursor:"pointer"}}>
+        <span className="flex items-center gap-2 text-sm font-semibold" style={{color:"var(--text-primary)"}}>
+          <FileText size={14} style={{color:"var(--accent)"}}/> Contexto del Equipo
+        </span>
+        {open?<ChevronUp size={13} style={{color:"var(--text-muted)"}}/>:<ChevronDown size={13} style={{color:"var(--text-muted)"}}/>}
+      </button>
+      {open&&(
+        <div className="flex flex-col gap-3 px-4 pb-4" style={{borderTop:"1px solid var(--border)"}}>
+          <p className="text-xs pt-3 leading-relaxed" style={{color:"var(--text-muted)"}}>
+            Más contexto = análisis más preciso. Describe estrategia, restricciones, formato, etc.
+          </p>
+          <textarea className="input" rows={3}
+            placeholder="Ej: Armé este team para VGC Reg H, con Incineroar como soporte…"
+            value={value} onChange={e=>onChange(e.target.value)}
+            style={{fontSize:"0.8rem",lineHeight:1.7,resize:"vertical"}}/>
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map(s=>(
+              <button key={s} onClick={()=>onChange(value?`${value}, ${s.toLowerCase()}`:s)}
+                className="text-xs px-2 py-1 rounded-full transition-all"
+                style={{border:"1px solid var(--border)",background:"var(--bg-input)",color:"var(--text-secondary)",cursor:"pointer"}}>
+                + {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
 /* ── Main ReviewView ────────────────────────────────────── */
 export function ReviewView() {
+  // useReview hook — uses ReviewResult { score, grade, weakPoints, suggestions, analysis, ... }
   const { result, loading, error, reviewTeam, reset } = useReview();
 
-  // Local team state (independent of builder)
   const [team, setTeam] = useState<(TeamMember | null)[]>(Array(6).fill(null));
   const [builds, setBuilds] = useState<Record<string, Build>>({});
   const [format, setFormat] = useState("VGC 2025 Regulation H");
   const [context, setContext] = useState("");
-  const [inputMode, setInputMode] = useState<"search" | "paste">("search");
+  const [inputMode, setInputMode] = useState<InputMode>("search");
   const [paste, setPaste] = useState("");
   const [pasteError, setPasteError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
   const [selectedPokemon, setSelectedPokemon] = useState<string | null>(null);
   const [showMatrix, setShowMatrix] = useState(false);
-  const [showContext, setShowContext] = useState(false);
+  const [editingSlot, setEditingSlot] = useState<number | null>(null);
 
   const filledTeam = team.filter(Boolean) as TeamMember[];
-  const selectedMember = filledTeam.find((p) => p.nombre === selectedPokemon) ?? null;
+  const selectedMember = filledTeam.find(p => p.nombre === selectedPokemon) ?? null;
   const selectedBuild = selectedMember ? builds[String(selectedMember.id)] : undefined;
-  const selectedSlotIdx = team.findIndex((p) => p?.nombre === selectedPokemon);
+  const slotsLeft = team.filter(s => s===null).length;
 
+  const editingPokemon = editingSlot !== null ? team[editingSlot] : null;
+  const editingBuild   = editingPokemon ? builds[String(editingPokemon.id)] : undefined;
+
+  // ── weaknessProfile: only compute when team is filled enough ──
   const weaknessProfile = useMemo(
     () => filledTeam.length > 0 ? getTeamWeaknessProfile(filledTeam) : null,
     [filledTeam]
@@ -210,399 +239,384 @@ export function ReviewView() {
 
   /* ── Team mutations ── */
   const addPokemon = useCallback((p: TeamMember) => {
-    setTeam((prev) => {
-      const emptyIdx = prev.findIndex((s) => s === null);
-      if (emptyIdx === -1) return prev;
-      const next = [...prev];
-      next[emptyIdx] = p;
-      return next;
+    setTeam(prev => {
+      const i = prev.findIndex(s => s===null);
+      if (i===-1) return prev;
+      const n = [...prev]; n[i] = p; return n;
     });
+    setBuilds(prev => ({ ...prev, [String(p.id)]: { item:"", ability:"", nature:"", moves:[] } }));
   }, []);
 
   const removePokemon = useCallback((idx: number) => {
-    setTeam((prev) => { const n = [...prev]; n[idx] = null; return n; });
+    const p = team[idx];
+    if (p) setBuilds(prev => { const n={...prev}; delete n[String(p.id)]; return n; });
+    setTeam(prev => { const n=[...prev]; n[idx]=null; return n; });
     setSelectedPokemon(null);
-  }, []);
+  }, [team]);
 
-  const clearTeam = useCallback(() => {
-    setTeam(Array(6).fill(null));
-    setBuilds({});
-    setSelectedPokemon(null);
-    reset();
-  }, [reset]);
+  const saveBuild = useCallback((slot: number, build: Build) => {
+    const p = team[slot];
+    if (!p) return;
+    setBuilds(prev => ({ ...prev, [String(p.id)]: build }));
+  }, [team]);
 
   function handleParsePaste() {
     setPasteError(null);
     if (!paste.trim()) { setPasteError("Pega un equipo primero."); return; }
     try {
-      const { team: t, builds: b } = parseShowdownPaste(paste);
-      if (t.length === 0) { setPasteError("No se pudo leer el equipo. Verifica el formato."); return; }
-      const padded: (TeamMember | null)[] = [...t, ...Array(6 - t.length).fill(null)];
-      setTeam(padded);
-      setBuilds(b);
-      setSelectedPokemon(null);
-      reset();
-      setPaste("");
+      const { team:t, builds:b } = parseShowdownPaste(paste);
+      if (t.length===0) { setPasteError("No se pudo leer el equipo. Verifica el formato."); return; }
+      setTeam([...t, ...Array(6-t.length).fill(null)] as (TeamMember|null)[]);
+      setBuilds(b); setSelectedPokemon(null); reset(); setPaste("");
     } catch { setPasteError("Error al parsear el paste."); }
   }
 
-  function handleCopyShowdown() {
+  function handleCopy() {
     navigator.clipboard.writeText(buildShowdownExport(filledTeam, builds));
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
   }
 
-  async function handleReview() {
-    await reviewTeam(filledTeam, builds, format, context);
+  // ── reviewTeam — only passes accepted params ──
+  function handleReview() {
+    reviewTeam(filledTeam, builds, format);
   }
 
-  const gradeColor = result ? (GRADE_COLOR[result.grade] ?? "var(--accent)") : "var(--accent)";
-  const slotsLeft = team.filter((s) => s === null).length;
+  const MODE_TABS = [
+    { id:"search" as InputMode,  label:"Buscar",      icon:<Search size={13}/> },
+    { id:"paste"  as InputMode,  label:"Importar",    icon:<ClipboardPaste size={13}/> },
+    { id:"manual" as InputMode,  label:"Constructor", icon:<Pencil size={13}/> },
+  ];
 
   return (
     <div className="relative w-full">
-      <PokeballPattern />
-      <div className="relative z-[1] w-full max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-5"
-        style={{ paddingBottom: 96 }}>
+      <style>{SCROLL_STYLE}</style>
+      <PokeballPatternDense/>
 
-        {/* Header */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+      <div className="relative z-[1] w-full max-w-screen-2xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col gap-4 sm:gap-5"
+        style={{paddingBottom:96}}>
+
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-              style={{ background: "var(--accent-glow)", border: "1px solid var(--accent)" }}>
-              <ShieldCheck size={20} style={{ color: "var(--accent)" }} />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+              style={{background:"var(--accent-glow)",border:"1px solid var(--accent)"}}>
+              <ShieldCheck size={18} style={{color:"var(--accent)"}}/>
             </div>
             <div>
-              <h1 className="font-bold text-lg leading-tight" style={{ color: "var(--text-primary)" }}>
-                Análisis de Equipo
-              </h1>
-              <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Evaluación competitiva profunda con IA
-              </p>
+              <h1 className="font-bold text-base sm:text-lg leading-tight" style={{color:"var(--text-primary)"}}>Team Review</h1>
+              <p className="text-xs leading-snug hidden sm:block" style={{color:"var(--text-muted)"}}>Análisis IA de fortalezas, debilidades y sinergia</p>
             </div>
           </div>
-          {filledTeam.length > 0 && (
+          {filledTeam.length>0&&(
             <div className="flex gap-2 flex-shrink-0">
-              <button className="btn-secondary text-xs" onClick={handleCopyShowdown}>
-                <ClipboardCopy size={13} /> {copied ? "¡Copiado!" : "Exportar"}
+              <button className="btn-secondary text-xs flex items-center gap-1" onClick={handleCopy}>
+                <Download size={12}/> <span className="hidden sm:inline">{copied?"¡Copiado!":"Exportar"}</span>
               </button>
-              <button className="btn-ghost text-xs" onClick={clearTeam} style={{ color: "var(--danger)" }}>
-                <Trash2 size={13} /> Limpiar
+              <button className="btn-secondary text-xs flex items-center gap-1"
+                onClick={()=>{setTeam(Array(6).fill(null));setBuilds({});setSelectedPokemon(null);reset();}}>
+                <Trash2 size={12}/> <span className="hidden sm:inline">Limpiar</span>
               </button>
             </div>
           )}
         </div>
 
-        <div className="grid gap-5" style={{ gridTemplateColumns: "300px 1fr", alignItems: "start" }}>
+        {/* ── Main grid ── */}
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 sm:gap-5 items-start">
 
-          {/* ── Left: Builder panel ── */}
-          <div className="flex flex-col gap-3"
-            style={{ position: "sticky", top: 80, maxHeight: "calc(100vh - 100px)", overflowY: "auto", scrollbarWidth: "none", paddingBottom: 80 }}>
+          {/* ─── Left panel ─── */}
+          <div className="flex flex-col gap-3 sm:gap-4">
 
             {/* Format */}
-            <div className="glass-card p-4 flex flex-col gap-3">
-              <span className="text-[0.6rem] uppercase tracking-widest font-bold" style={{ color: "var(--text-muted)" }}>
-                Formato
-              </span>
-              <select className="input" style={{ cursor: "pointer" }} value={format} onChange={(e) => setFormat(e.target.value)}>
-                {FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
+            <div className="glass-card p-3 sm:p-4 flex flex-col gap-2">
+              <label className="text-[0.6rem] uppercase tracking-widest font-bold" style={{color:"var(--text-muted)"}}>Formato</label>
+              <select className="input text-sm" value={format} onChange={e=>setFormat(e.target.value)}>
+                {FORMATS.map(f=><option key={f} value={f}>{f}</option>)}
               </select>
+            </div>
 
-              {/* Context toggle */}
-              <button
-                onClick={() => setShowContext((v) => !v)}
-                className="flex items-center justify-between w-full text-xs"
-                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)" }}
-              >
-                <span className="flex items-center gap-1.5 font-semibold uppercase tracking-wider" style={{ fontSize: "0.6rem" }}>
-                  <FileText size={10} /> Contexto adicional
-                </span>
-                <ChevronDown size={11} style={{ transform: showContext ? "rotate(180deg)" : "none", transition: "transform 0.2s" }} />
-              </button>
-              {showContext && (
-                <textarea
-                  className="input animate-fade-in"
-                  rows={3}
-                  placeholder="Ej: Equipo de lluvia para regionals, el líder es Pelipper, quiero saber si la build de Kingdra está optimizada..."
-                  style={{ resize: "vertical", fontFamily: "inherit", fontSize: "0.8rem" }}
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                />
+            {/* Mode tabs */}
+            <div className="glass-card p-3 sm:p-4 flex flex-col gap-3">
+              {/* Tab pills */}
+              <div className="flex gap-1 p-1 rounded-xl" style={{background:"var(--bg-surface)",border:"1px solid var(--border)"}}>
+                {MODE_TABS.map(({id,label,icon})=>(
+                  <button key={id}
+                    onClick={()=>{ setInputMode(id); setSelectedPokemon(null); }}
+                    className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200"
+                    style={{background:inputMode===id?"var(--accent)":"transparent",color:inputMode===id?"#fff":"var(--text-secondary)",boxShadow:inputMode===id?"0 2px 12px var(--accent-glow)":"none",cursor:"pointer",border:"none"}}>
+                    {icon}<span>{label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Search */}
+              {inputMode==="search"&&(
+                <div className="flex flex-col gap-2 animate-fade-in">
+                  <span className="text-[0.6rem] uppercase tracking-widest font-bold" style={{color:"var(--text-muted)"}}>
+                    Agregar Pokémon ({filledTeam.length}/6)
+                  </span>
+                  <LeaderSearch selected={null} onSelect={p=>{if(slotsLeft>0)addPokemon(p);}} onClear={()=>{}}
+                    placeholder={slotsLeft>0?"Buscar y agregar...":"Equipo completo"} disabled={slotsLeft===0}/>
+                </div>
+              )}
+
+              {/* Paste */}
+              {inputMode==="paste"&&(
+                <div className="flex flex-col gap-2 animate-fade-in">
+                  <span className="text-[0.6rem] uppercase tracking-widest font-bold" style={{color:"var(--text-muted)"}}>Showdown Export Paste</span>
+                  <textarea className="input rv-scroll font-mono text-xs" rows={6}
+                    placeholder={"Incineroar @ Assault Vest\nAbility: Intimidate\nEVs: 252 HP / 4 Atk / 252 SpD\nCareful Nature\n- Fake Out\n..."}
+                    value={paste} onChange={e=>setPaste(e.target.value)}
+                    style={{lineHeight:1.6,resize:"vertical"}}/>
+                  {pasteError&&<p className="text-xs" style={{color:"var(--danger)"}}>{pasteError}</p>}
+                  <button className="btn-primary text-xs flex items-center gap-1.5 w-fit" onClick={handleParsePaste}>
+                    <Upload size={12}/> Cargar equipo
+                  </button>
+                </div>
+              )}
+
+              {/* Manual */}
+              {inputMode==="manual"&&(
+                <div className="flex flex-col gap-2 animate-fade-in">
+                  <span className="text-[0.6rem] uppercase tracking-widest font-bold" style={{color:"var(--text-muted)"}}>
+                    Constructor ({filledTeam.length}/6)
+                  </span>
+                  <p className="text-xs leading-relaxed" style={{color:"var(--text-muted)"}}>
+                    Toca <Pencil size={9} style={{display:"inline",verticalAlign:"middle"}}/> en cada slot para editar su build con selectors validados.
+                  </p>
+                  <LeaderSearch selected={null} onSelect={p=>{if(slotsLeft>0)addPokemon(p);}} onClear={()=>{}}
+                    placeholder={slotsLeft>0?"Agregar Pokémon...":"Equipo completo"} disabled={slotsLeft===0}/>
+                </div>
               )}
             </div>
 
-            {/* Input mode toggle */}
-            <div className="flex gap-1 p-1 rounded-xl"
-              style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
-              {(["search", "paste"] as const).map((m) => (
-                <button key={m} onClick={() => setInputMode(m)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all"
-                  style={{
-                    background: inputMode === m ? "var(--accent)" : "transparent",
-                    color: inputMode === m ? "#fff" : "var(--text-secondary)",
-                    cursor: "pointer",
-                  }}>
-                  {m === "search" ? <><Users size={12} /> Buscar</> : <><ClipboardPaste size={12} /> Importar</>}
-                </button>
-              ))}
-            </div>
-
-            {/* Search mode */}
-            {inputMode === "search" && (
-              <div className="flex flex-col gap-2 animate-fade-in">
-                <span className="text-[0.6rem] uppercase tracking-widest font-bold px-0.5" style={{ color: "var(--text-muted)" }}>
-                  Agregar Pokémon ({filledTeam.length}/6)
-                </span>
-                <LeaderSearch
-                  selected={null}
-                  onSelect={(p) => { if (slotsLeft > 0) addPokemon(p); }}
-                  onClear={() => {}}
-                  placeholder={slotsLeft > 0 ? "Buscar y agregar..." : "Equipo completo"}
-                  disabled={slotsLeft === 0}
-                />
-                {slotsLeft === 0 && (
-                  <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
-                    Equipo completo. Elimina un Pokémon para agregar otro.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {/* Paste mode */}
-            {inputMode === "paste" && (
-              <div className="glass-card p-3 flex flex-col gap-2 animate-fade-in">
-                <span className="text-[0.6rem] uppercase tracking-widest font-bold" style={{ color: "var(--text-muted)" }}>
-                  Showdown Paste
-                </span>
-                <textarea
-                  className="input font-mono"
-                  rows={7}
-                  placeholder={"Incineroar @ Assault Vest\nAbility: Intimidate\nEVs: 252 HP / 4 Atk / 252 SpD\nCareful Nature\n- Fake Out\n- Knock Off\n..."}
-                  value={paste}
-                  onChange={(e) => setPaste(e.target.value)}
-                  style={{ fontSize: "0.7rem", lineHeight: 1.6, resize: "none" }}
-                />
-                {pasteError && <p className="text-xs" style={{ color: "var(--danger)" }}>{pasteError}</p>}
-                <button className="btn-primary text-xs" onClick={handleParsePaste}>
-                  <ClipboardPaste size={12} /> Cargar equipo
-                </button>
-              </div>
-            )}
-
-            {/* Team grid 2x3 */}
+            {/* Team grid — 3 cols, sprites visibles */}
             <div className="grid grid-cols-3 gap-2">
               {team.map((p, i) => (
-                <TeamSlotMini
-                  key={i}
-                  index={i}
-                  pokemon={p}
+                <TeamSlotMini key={i} index={i} pokemon={p}
                   build={p ? builds[String(p.id)] : undefined}
-                  selected={selectedPokemon === p?.nombre}
-                  onSelect={(idx) => {
-                    const poke = team[idx];
-                    setSelectedPokemon(poke ? (selectedPokemon === poke.nombre ? null : poke.nombre) : null);
+                  selected={selectedPokemon===p?.nombre}
+                  onSelect={idx => {
+                    const pk = team[idx];
+                    setSelectedPokemon(pk ? (selectedPokemon===pk.nombre ? null : pk.nombre) : null);
                   }}
                   onRemove={removePokemon}
+                  onEdit={inputMode==="manual" ? idx=>setEditingSlot(idx) : undefined}
                 />
               ))}
             </div>
 
-            {/* Analyze button */}
-            <button
-              className="btn-primary w-full animate-pulse-glow"
-              onClick={handleReview}
-              disabled={loading || filledTeam.length === 0}
-              style={{ padding: "11px 16px" }}
-            >
-              {loading
-                ? <><Pokeball size={16} className="animate-rotate-pokeball" /> Analizando...</>
-                : <><ShieldCheck size={15} /> Analizar Equipo ({filledTeam.length} Pokémon)</>
-              }
-            </button>
-
-            {result && (
-              <button className="btn-secondary w-full" onClick={() => { reset(); setSelectedPokemon(null); }}>
-                Nueva revisión
-              </button>
+            {/* Selected build summary */}
+            {selectedMember&&selectedBuild&&(
+              <div className="glass-card p-3 sm:p-4 flex flex-col gap-2 animate-bounce-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <PokemonSprite name={selectedMember.nombre} spriteUrl={selectedMember.sprite_url} size={32}/>
+                    <span className="text-xs font-bold capitalize" style={{color:"var(--text-primary)"}}>{selectedMember.nombre}</span>
+                  </div>
+                  {inputMode==="manual"&&(
+                    <button className="btn-secondary text-xs flex items-center gap-1"
+                      onClick={()=>setEditingSlot(team.findIndex(p=>p?.nombre===selectedMember.nombre))}>
+                      <Pencil size={11}/> Editar
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{color:"var(--text-secondary)"}}>
+                  {selectedBuild.item&&<span>🎒 {selectedBuild.item}</span>}
+                  {selectedBuild.ability&&<span>⚡ {selectedBuild.ability}</span>}
+                  {selectedBuild.nature&&<span>🌿 {selectedBuild.nature}</span>}
+                  {selectedBuild.moves?.filter(Boolean).length>0&&(
+                    <span className="w-full">⚔️ {selectedBuild.moves.filter(Boolean).join(" · ")}</span>
+                  )}
+                </div>
+              </div>
             )}
+
+            {/* Context */}
+            <ContextPanel value={context} onChange={setContext}/>
+
+            {/* Weakness coverage */}
+            {weaknessProfile&&(
+              <div className="glass-card p-3 sm:p-4 flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[0.65rem] font-semibold uppercase tracking-wider" style={{color:"var(--text-muted)"}}>
+                    Cobertura Defensiva
+                  </span>
+                  <button onClick={()=>setShowMatrix(s=>!s)} className="text-xs flex items-center gap-1"
+                    style={{color:"var(--accent)",background:"none",border:"none",cursor:"pointer"}}>
+                    {showMatrix?"Ocultar":"Matriz"} {showMatrix?<ChevronUp size={11}/>:<ChevronDown size={11}/>}
+                  </button>
+                </div>
+                {/* WeaknessBar expects profile — pass it directly */}
+                {!showMatrix&&<WeaknessBar profile={weaknessProfile} onOpenMatrix={()=>setShowMatrix(true)}/>}
+              </div>
+            )}
+
+            {/* Analyze CTA */}
+            <button className="btn-primary w-full animate-pulse-glow"
+              onClick={handleReview}
+              disabled={loading||filledTeam.length<2}
+              style={{fontSize:"0.9rem",padding:"13px",opacity:filledTeam.length<2?0.5:1}}>
+              {loading
+                ?<span className="flex items-center justify-center gap-2"><span className="loading-spinner"/> Analizando…</span>
+                :<span className="flex items-center justify-center gap-2"><ShieldCheck size={16}/> Analizar Equipo</span>}
+            </button>
+            {filledTeam.length<2&&<p className="text-xs text-center" style={{color:"var(--text-muted)"}}>Agrega al menos 2 Pokémon</p>}
+            {error&&<p className="text-xs px-3 py-2 rounded-lg" style={{background:"rgba(239,68,68,0.1)",color:"var(--danger)"}}>{error}</p>}
           </div>
 
-          {/* ── Right: Results + Detail ── */}
-          <div className="flex flex-col gap-4 min-w-0">
-
-            {/* Weakness bar */}
-            {weaknessProfile && filledTeam.length > 0 && (
-              <WeaknessBar profile={weaknessProfile} onOpenMatrix={() => setShowMatrix(true)} />
+          {/* ─── Right panel — results ─── */}
+          <div className="flex flex-col gap-4">
+            {!result&&!loading&&(
+              <EmptyState icon={<ShieldCheck size={32}/>} title="Sin análisis todavía"
+                description={filledTeam.length===0
+                  ?"Arma tu equipo a la izquierda y presiona Analizar Equipo."
+                  :`${filledTeam.length} Pokémon listos. Agrega contexto y analiza.`}/>
             )}
 
-            {/* Empty state */}
-            {filledTeam.length === 0 && (
-              <EmptyState
-                icon={<Trophy size={28} />}
-                title="Arma tu equipo para analizar"
-                description="Busca Pokémon uno a uno o importa un paste de Showdown."
-              />
-            )}
+            {result&&(()=>{
+              const gc = GRADE_COLOR[result.grade] ?? "var(--text-muted)";
+              // ReviewResult uses: grade, score, analysis, weakPoints, suggestions, pokemonRatings
+              const weakPoints  = result.weakPoints  ?? [];
+              const suggestions = result.suggestions ?? [];
+              return (
+                <>
+                  {/* Grade card */}
+                  <div className="glass-card p-4 sm:p-5 flex items-center gap-4 sm:gap-5"
+                    style={{border:`1.5px solid ${gc}33`}}>
+                    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center font-black text-2xl flex-shrink-0"
+                      style={{background:`${gc}22`,color:gc,border:`2px solid ${gc}`}}>
+                      {result.grade}
+                    </div>
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      <p className="font-bold text-sm sm:text-base" style={{color:"var(--text-primary)"}}>
+                        {result.analysis ?? result.metaVerdict ?? "Análisis completado"}
+                      </p>
+                      <p className="text-xs" style={{color:"var(--text-muted)"}}>Score: {result.score} / 100</p>
+                    </div>
+                  </div>
 
-            {/* Error */}
-            {error && (
-              <div className="rounded-xl px-4 py-3 text-sm" role="alert"
-                style={{ background: "rgba(239,68,68,0.08)", color: "var(--danger)", border: "1px solid rgba(239,68,68,0.2)" }}>
-                {error}
-              </div>
-            )}
+                  {/* Weak points + Suggestions */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {/* Weak Points */}
+                    <div className="glass-card p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <TrendingDown size={14} style={{color:"var(--danger)"}}/>
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{color:"var(--danger)"}}>Puntos Débiles</span>
+                      </div>
+                      {weakPoints.length===0
+                        ?<p className="text-xs" style={{color:"var(--text-muted)"}}>—</p>
+                        :<ul className="flex flex-col gap-2">
+                          {weakPoints.map((w: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2 text-xs leading-relaxed" style={{color:"var(--text-secondary)"}}>
+                              <span style={{color:"var(--danger)",marginTop:2,flexShrink:0}}>✗</span>{w}
+                            </li>
+                          ))}
+                        </ul>}
+                    </div>
 
-            {/* Loading skeletons */}
-            {loading && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="skeleton rounded-xl" style={{ height: 90 }} />
-                ))}
-              </div>
-            )}
+                    {/* Suggestions */}
+                    <div className="glass-card p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-2">
+                        <Lightbulb size={14} style={{color:"var(--warning)"}}/>
+                        <span className="text-xs font-bold uppercase tracking-wider" style={{color:"var(--warning)"}}>Sugerencias</span>
+                      </div>
+                      {suggestions.length===0
+                        ?<p className="text-xs" style={{color:"var(--text-muted)"}}>—</p>
+                        :<ul className="flex flex-col gap-2">
+                          {suggestions.map((s: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2 text-xs leading-relaxed" style={{color:"var(--text-secondary)"}}>
+                              <span style={{color:"var(--warning)",marginTop:2,flexShrink:0}}>→</span>{s}
+                            </li>
+                          ))}
+                        </ul>}
+                    </div>
+                  </div>
 
-            {/* Results */}
-            {result && !loading && (
-              <div className="flex flex-col gap-4 animate-slide-up">
-
-                {/* Score hero */}
-                <div className="glass-card p-5 flex flex-col items-center gap-4 sm:flex-row sm:items-start"
-                  style={{ borderColor: gradeColor, boxShadow: `0 0 0 1px ${gradeColor}33, 0 8px 32px ${gradeColor}18` }}>
-                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                    <div className="relative w-24 h-24 rounded-full flex items-center justify-center"
-                      style={{ background: `conic-gradient(${gradeColor} ${result.score * 3.6}deg, var(--bg-input) 0deg)` }}>
-                      <div className="w-20 h-20 rounded-full flex flex-col items-center justify-center"
-                        style={{ background: "var(--bg-card)" }}>
-                        <span className="font-black text-2xl" style={{ color: gradeColor, lineHeight: 1 }}>{result.grade}</span>
-                        <span className="text-xs font-bold tabular-nums" style={{ color: "var(--text-secondary)" }}>{result.score}/100</span>
+                  {/* Category scores */}
+                  {result.categories&&Object.keys(result.categories).length>0&&(
+                    <div className="glass-card p-4 flex flex-col gap-3">
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{color:"var(--text-muted)"}}>
+                        Categorías
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {Object.entries(result.categories).map(([key, cat]: [string, any]) => (
+                          <div key={key} className="flex flex-col gap-1 p-2 rounded-xl"
+                            style={{background:"var(--bg-input)",border:"1px solid var(--border)"}}>
+                            <span className="text-[0.6rem] uppercase tracking-wider" style={{color:"var(--text-muted)"}}>{cat.label ?? key}</span>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{background:"var(--bg-card)"}}>
+                                <div style={{width:`${cat.score}%`,height:"100%",background:"var(--accent)",borderRadius:99,transition:"width 0.6s ease"}}/>
+                              </div>
+                              <span className="text-xs font-bold tabular-nums" style={{color:"var(--accent)"}}>{cat.score}</span>
+                            </div>
+                            {cat.desc&&<p className="text-[0.58rem] leading-relaxed" style={{color:"var(--text-muted)"}}>{cat.desc}</p>}
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  </div>
-                  <div className="flex flex-col gap-2 flex-1">
-                    <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>{result.analysis}</p>
-                    <div className="px-3 py-2 rounded-lg text-sm font-semibold italic"
-                      style={{ background: `${gradeColor}11`, color: gradeColor, border: `1px solid ${gradeColor}33` }}>
-                      "{result.metaVerdict}"
-                    </div>
-                  </div>
-                </div>
+                  )}
 
-                {/* Categories */}
-                {result.categories && (
-                  <div className="glass-card p-4 flex flex-col gap-3">
-                    <h3 className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
-                      Categorías
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {Object.entries(result.categories).map(([key, cat]) => {
-                        const c = cat as { score: number; label: string; desc: string };
-                        const col = c.score >= 75 ? "var(--success)" : c.score >= 50 ? "var(--warning)" : "var(--danger)";
-                        return (
-                          <div key={key} className="flex flex-col gap-1.5 p-3 rounded-xl"
-                            style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold" style={{ color: "var(--text-primary)" }}>{c.label}</span>
-                              <span className="text-xs font-bold tabular-nums" style={{ color: col }}>{c.score}</span>
-                            </div>
-                            <StatBar label="" value={c.score} max={100} showValue={false} animated />
-                            <p className="text-xs" style={{ color: "var(--text-muted)" }}>{c.desc}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Weak points & suggestions */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="glass-card p-4 flex flex-col gap-3">
-                    <h3 className="text-xs uppercase tracking-wider font-semibold flex items-center gap-1.5" style={{ color: "var(--danger)" }}>
-                      <TrendingDown size={13} /> Puntos Débiles
-                    </h3>
-                    <div className="flex flex-col gap-2">
-                      {result.weakPoints.map((item, i) => (
-                        <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-                          style={{ background: "rgba(239,68,68,0.07)", color: "var(--danger)", border: "1px solid rgba(239,68,68,0.15)" }}>
-                          <span style={{ flexShrink: 0 }}>›</span>
-                          <span className="leading-relaxed">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="glass-card p-4 flex flex-col gap-3">
-                    <h3 className="text-xs uppercase tracking-wider font-semibold flex items-center gap-1.5" style={{ color: "var(--success)" }}>
-                      <Lightbulb size={13} /> Sugerencias
-                    </h3>
-                    <div className="flex flex-col gap-2">
-                      {result.suggestions.map((item, i) => (
-                        <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2 text-xs"
-                          style={{ background: "rgba(34,197,94,0.07)", color: "var(--success)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                          <span style={{ flexShrink: 0 }}>›</span>
-                          <span className="leading-relaxed">{item}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Per-pokemon ratings */}
-                {result.pokemonRatings && Object.keys(result.pokemonRatings).length > 0 && (
-                  <div className="glass-card p-4 flex flex-col gap-3">
-                    <h3 className="text-xs uppercase tracking-wider font-semibold" style={{ color: "var(--text-muted)" }}>
-                      Ratings Individuales
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-                      {Object.entries(result.pokemonRatings).map(([name, rating]) => {
-                        const col = rating.score >= 75 ? "var(--success)" : rating.score >= 50 ? "var(--warning)" : "var(--danger)";
-                        const member = filledTeam.find((p) => p.nombre === name);
-                        return (
-                          <button
-                            key={name}
-                            onClick={() => setSelectedPokemon(selectedPokemon === name ? null : name)}
-                            className="flex flex-col gap-2 p-3 rounded-xl text-left transition-all"
-                            style={{
-                              background: selectedPokemon === name ? "var(--accent-glow)" : "var(--bg-surface)",
-                              border: `1px solid ${selectedPokemon === name ? "var(--accent)" : "var(--border)"}`,
-                              cursor: "pointer",
-                            }}
-                          >
-                            <div className="flex items-center gap-2">
-                              {member && <PokemonSprite name={member.nombre} spriteUrl={member.sprite_url} size={36} />}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs font-bold capitalize" style={{ color: "var(--text-primary)" }}>{name}</span>
-                                  <span className="text-sm font-black tabular-nums" style={{ color: col }}>{rating.score}</span>
+                  {/* Per-pokemon ratings */}
+                  {result.pokemonRatings&&Object.keys(result.pokemonRatings).length>0&&(
+                    <div className="glass-card p-4 flex flex-col gap-3">
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{color:"var(--text-muted)"}}>
+                        Análisis por Pokémon
+                      </span>
+                      <div className="flex flex-col gap-2">
+                        {Object.entries(result.pokemonRatings).map(([name, rating]: [string, any]) => {
+                          const member = filledTeam.find(p => p.nombre.toLowerCase()===name.toLowerCase());
+                          const scoreColor = rating.score>=70?"var(--success)":rating.score>=50?"var(--warning)":"var(--danger)";
+                          return (
+                            <div key={name} className="flex items-start gap-3 p-3 rounded-xl"
+                              style={{background:"var(--bg-input)"}}>
+                              {member&&(
+                                <div style={{width:40,height:40,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                                  <PokemonSprite name={member.nombre} spriteUrl={member.sprite_url} size={38}/>
                                 </div>
-                                <StatBar label="" value={rating.score} max={100} showValue={false} animated />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-xs capitalize truncate" style={{color:"var(--text-primary)"}}>{name}</span>
+                                  <span className="font-black text-sm tabular-nums flex-shrink-0" style={{color:scoreColor}}>{rating.score}</span>
+                                </div>
+                                <p className="text-xs leading-relaxed mt-0.5" style={{color:"var(--text-secondary)"}}>{rating.comment}</p>
                               </div>
                             </div>
-                            <p className="text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>{rating.comment}</p>
-                          </button>
-                        );
-                      })}
+                          );
+                        })}
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  )}
 
-            {/* Selected pokemon build detail */}
-            {selectedMember && selectedBuild && (
-              <div className="animate-fade-in">
-                <BuildCard
-                  pokemon={selectedMember}
-                  build={selectedBuild}
-                  aiRole={selectedMember.rol}
-                  onClose={() => setSelectedPokemon(null)}
-                />
-              </div>
-            )}
+                  {/* Actions */}
+                  <div className="flex gap-2 flex-wrap">
+                    <button className="btn-secondary text-xs flex items-center gap-1.5" onClick={handleCopy}>
+                      <Download size={12}/> Exportar Showdown
+                    </button>
+                    <button className="btn-secondary text-xs flex items-center gap-1.5" onClick={reset}>
+                      <Trash2 size={12}/> Nuevo análisis
+                    </button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
 
+      {/* WeaknessMatrix modal — FIX: pass profile={weaknessProfile} not team={filledTeam} */}
       {showMatrix && weaknessProfile && (
-        <WeaknessMatrix profile={weaknessProfile} onClose={() => setShowMatrix(false)} />
+        <WeaknessMatrix profile={weaknessProfile} onClose={()=>setShowMatrix(false)}/>
+      )}
+
+      {/* Manual Build Modal */}
+      {editingSlot!==null && editingPokemon && (
+        <ManualBuildModal
+          pokemon={editingPokemon}
+          initialBuild={editingBuild}
+          onSave={build=>{ saveBuild(editingSlot, build); setEditingSlot(null); }}
+          onClose={()=>setEditingSlot(null)}
+        />
       )}
     </div>
   );

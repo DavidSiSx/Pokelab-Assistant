@@ -11,7 +11,6 @@ export interface BuilderConfig {
   allowUB: boolean;
   isLittleCup: boolean;
   isRandomizer: boolean;
-  //Meta preference: para orientar al modelo hacia estrategias más centradas en el meta actual o en opciones más variadas/nicho. Esto puede ayudar a evitar sugerencias demasiado "extremas" o poco prácticas.
   metaPreference: "extrememeta" | "meta" | "balanced" | "varied" | "niche";
 
   // Monotype
@@ -46,8 +45,22 @@ export interface BuilderConfig {
   generationMode: "leader" | "scratch";
 }
 
+export const FORMAT_LIST = [
+  "VGC 2025 Regulation H",
+  "VGC 2024 Regulation G",
+  "National Dex",
+  "National Dex Doubles",
+  "OU Singles",
+  "Doubles OU",
+  "Little Cup",
+  "Ubers",
+  "Random Battle",
+] as const;
+
+export type SupportedFormat = (typeof FORMAT_LIST)[number];
+
 export const DEFAULT_CONFIG: BuilderConfig = {
-  format: "National Dex Doubles (6v6 - Cobblemon)",
+  format: "National Dex Doubles",
   customStrategy: "",
   experienceLevel: "experto",
   clauses: ["Species Clause"],

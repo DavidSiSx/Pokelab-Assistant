@@ -39,18 +39,23 @@ export function useSwap() {
       setLoading(true);
       setError(null);
 
-      // Build locked team without the slot being swapped
+      // Locked team = all filled slots EXCEPT the one being swapped
       const lockedTeam = currentTeam
         .filter((p, i) => p !== null && i !== slotIndex)
         .filter(Boolean) as TeamMember[];
 
-      const blacklist = feedback
-        ? currentTeam
-            .filter((p) => p && feedback.toLowerCase().includes(p.nombre.toLowerCase()))
-            .map((p) => p!.nombre)
-        : [];
+      const blacklist: string[] = [];
 
-      // Add current slot pokemon to blacklist so AI won't suggest it again
+      // Auto-blacklist pokemon mentioned in feedback
+      if (feedback) {
+        currentTeam.forEach((p) => {
+          if (p && feedback.toLowerCase().includes(p.nombre.toLowerCase())) {
+            blacklist.push(p.nombre);
+          }
+        });
+      }
+
+      // Always blacklist the current slot so AI won't suggest the same pokemon
       const currentSlotPokemon = currentTeam[slotIndex];
       if (currentSlotPokemon) blacklist.push(currentSlotPokemon.nombre);
 
@@ -66,9 +71,15 @@ export function useSwap() {
             config: {
               ...config,
               blacklist,
-              customStrategy: [config.customStrategy, feedback].filter(Boolean).join(" "),
+              customStrategy: [
+                config.customStrategy,
+                feedback,
+                "Sugiere 3 candidatos con ROLES DISTINTOS (ej: uno ofensivo, uno de soporte, uno pivot). Diversidad máxima.",
+              ].filter(Boolean).join(" "),
             },
             slotIndex,
+            // ⚡ KEY: tell the server to generate 3 alternatives instead of 1
+            swapCount: 3,
           }),
         });
 
@@ -78,7 +89,46 @@ export function useSwap() {
         }
 
         const data = await res.json();
-        setSuggestions(data.suggestions ?? []);
+        const raw: any[] = data.suggestions ?? [];
+
+        // Normalize to SwapSuggestion shape
+        const normalized: SwapSuggestion[] = raw.map((sug: any) => {
+          // reasoning can be at root level or nested inside build object
+          const reasoning =
+            sug.reasoning ??
+            sug.razonamiento ??
+            sug.build?.reasoning ??
+            "";
+
+          // evSpread: use existing string or build from individual ev fields
+          const evSpread =
+            sug.build?.evSpread ??
+            sug.evSpread ??
+            buildEvString(sug);
+
+          return {
+            id: sug.id ?? sug.national_dex ?? Math.floor(Math.random() * 900000) + 1,
+            name: sug.name ?? sug.nombre ?? "???",
+            role: sug.role ?? sug.rol ?? sug.build?.role ?? "",
+            reasoning,
+            build: {
+              ability: sug.build?.ability ?? sug.ability ?? "",
+              nature:  sug.build?.nature  ?? sug.nature  ?? "",
+              item:    sug.build?.item    ?? sug.item    ?? "",
+              moves:   sug.build?.moves   ?? sug.moves   ?? [],
+              evSpread,
+              teraType:
+                sug.build?.teraType ??
+                sug.teraType ??
+                sug.build?.tera_type ??
+                sug.tera_type ??
+                "",
+            },
+            synergies: Array.isArray(sug.synergies) ? sug.synergies : [],
+          };
+        });
+
+        setSuggestions(normalized);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Error desconocido");
         setSuggestions([]);
@@ -95,4 +145,17 @@ export function useSwap() {
   }, []);
 
   return { suggestions, loading, error, findReplacement, reset };
+}
+
+/** Build evSpread string from individual ev_* fields */
+function buildEvString(sug: any): string {
+  const parts = [
+    sug.ev_hp  && `${sug.ev_hp} HP`,
+    sug.ev_atk && `${sug.ev_atk} Atk`,
+    sug.ev_def && `${sug.ev_def} Def`,
+    sug.ev_spa && `${sug.ev_spa} SpA`,
+    sug.ev_spd && `${sug.ev_spd} SpD`,
+    sug.ev_spe && `${sug.ev_spe} Spe`,
+  ].filter(Boolean);
+  return parts.length ? parts.join(" / ") : "";
 }

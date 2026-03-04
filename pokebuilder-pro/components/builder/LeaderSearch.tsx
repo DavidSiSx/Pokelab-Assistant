@@ -22,10 +22,10 @@ export function LeaderSearch({
   onClear,
   selected,
   placeholder = 'Buscar Pokémon líder...',
+  disabled = false,
 }: LeaderSearchProps) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
-  // Posición del dropdown calculada desde el input
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const { results, loading, search, clear } = usePokemonSearch();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -33,7 +33,6 @@ export function LeaderSearch({
 
   useEffect(() => { search(query); }, [query, search]);
 
-  // Calcular posición absoluta del dropdown relativa a la ventana
   function updateDropdownPosition() {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
@@ -50,7 +49,6 @@ export function LeaderSearch({
     if (open) updateDropdownPosition();
   }, [open, results]);
 
-  // Recalcular en scroll/resize
   useEffect(() => {
     if (!open) return;
     const onScroll = () => updateDropdownPosition();
@@ -62,12 +60,10 @@ export function LeaderSearch({
     };
   }, [open]);
 
-  // Cerrar al clickear fuera
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       const target = e.target as Node;
       if (containerRef.current && !containerRef.current.contains(target)) {
-        // también chequear el dropdown portal
         const portal = document.getElementById('leader-search-portal');
         if (portal && portal.contains(target)) return;
         setOpen(false);
@@ -90,7 +86,7 @@ export function LeaderSearch({
     clear();
   }
 
-  // ── Selected state ───────────────────────────────────────
+  // ── Selected state ────────────────────────────────────────────
   if (selected) {
     return (
       <div
@@ -150,12 +146,11 @@ export function LeaderSearch({
     );
   }
 
-  // ── Search state ─────────────────────────────────────────
+  // ── Search state ──────────────────────────────────────────────
   const showDropdown = open && (results.length > 0 || loading);
 
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
-      {/* Input */}
       <div style={{ position: 'relative' }}>
         <Search
           size={15}
@@ -171,16 +166,22 @@ export function LeaderSearch({
         <input
           ref={inputRef}
           className="input"
-          style={{ paddingLeft: 36, paddingRight: query ? 36 : 12 }}
+          style={{
+            paddingLeft: 36,
+            paddingRight: query ? 36 : 12,
+            opacity: disabled ? 0.5 : 1,
+            cursor: disabled ? 'not-allowed' : 'text',
+          }}
           placeholder={placeholder}
           value={query}
-          onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
-          onFocus={() => { if (query.length >= 1) setOpen(true); }}
-          aria-label="Buscar Pokémon líder"
+          disabled={disabled}
+          onChange={(e) => { if (!disabled) { setQuery(e.target.value); setOpen(true); } }}
+          onFocus={() => { if (!disabled && query.length >= 1) setOpen(true); }}
+          aria-label="Buscar Pokémon"
           aria-autocomplete="list"
           aria-expanded={open}
         />
-        {query && (
+        {query && !disabled && (
           <button
             onClick={() => { setQuery(''); clear(); setOpen(false); }}
             style={{
@@ -203,7 +204,7 @@ export function LeaderSearch({
         )}
       </div>
 
-      {/* Dropdown — montado en portal para escapar overflow:hidden del sidebar */}
+      {/* Dropdown portal */}
       {showDropdown && typeof document !== 'undefined' && createPortal(
         <div
           id="leader-search-portal"
@@ -256,41 +257,35 @@ export function LeaderSearch({
                 borderBottom: idx !== results.length - 1 ? '1px solid var(--border)' : 'none',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'background 0.12s',
-                color: 'var(--text-primary)',
+                transition: 'background 0.15s',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-card-hover)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+              onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-card-hover)')}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
             >
-              <PokemonSprite
-                name={r.nombre}
-                spriteUrl={r.sprite_url}
-                nationalDex={r.national_dex}
-                size={40}
-              />
-              <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 600, textTransform: 'capitalize' }}>
-                  {r.nombre}
-                </span>
-                <div style={{ display: 'flex', gap: 4 }}>
+              <PokemonSprite name={r.nombre} spriteUrl={r.sprite_url} size={36} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)', textTransform: 'capitalize' }}>
+                    {r.nombre}
+                  </span>
+                  {r.tier && r.tier !== 'Unranked' && (
+                    <span style={{
+                      fontSize: '0.6rem', fontWeight: 700,
+                      padding: '1px 6px', borderRadius: 99,
+                      background: 'var(--accent-glow)',
+                      color: 'var(--accent-light)',
+                      border: '1px solid var(--accent)',
+                      flexShrink: 0,
+                    }}>
+                      {r.tier}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
                   {r.tipo1 && <TypeBadge type={r.tipo1} size="sm" />}
                   {r.tipo2 && <TypeBadge type={r.tipo2} size="sm" />}
                 </div>
               </div>
-              {r.tier && (
-                <span style={{
-                  padding: '2px 8px',
-                  background: 'var(--accent-glow)',
-                  border: '1px solid var(--accent)',
-                  borderRadius: 6,
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  color: 'var(--accent-light)',
-                  flexShrink: 0,
-                }}>
-                  {r.tier}
-                </span>
-              )}
             </button>
           ))}
         </div>,

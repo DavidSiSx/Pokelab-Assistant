@@ -216,19 +216,19 @@ export const VALID_MEGA_STONES: Record<string, string> = {
 // REGLAS COMPETITIVAS — usadas en los prompts de IA
 // ─────────────────────────────────────────────────────────────────
 export const ELITE_COMPETITIVE_RULES = `
-  4. LÓGICA COMPETITIVA AVANZADA (NIVEL VGC/SMOGON ÉLITE):
-     - REGLA CHOICE / ASSAULT VEST: Si un Pokémon lleva "Choice Band/Specs/Scarf" o "Assault Vest",
-       SUS 4 MOVIMIENTOS DEBEN SER DE DAÑO DIRECTO (cero movimientos de estado).
-     - EVIOLITE: Pre-evoluciones viables (Porygon2, Dusclops, Clefairy) deben llevar Eviolite.
-     - OBJETOS EXCLUSIVOS: 'Light Ball' SOLO para Pikachu, 'Thick Club' SOLO para Marowak.
-     - SINERGIAS DINÁMICAS: Setter de Clima → incluye abusers (Swift Swim / Chlorophyll).
-
-  4b. BALANCE OFENSIVO FÍSICO / ESPECIAL:
-     - El equipo DEBE tener al menos 2 atacantes físicos (Atk) y 2 especiales (SpA).
-     - Si el modo Monotype restringe la diversidad ofensiva, incluye al menos 1 atacante mixto.
-     - EXCEPCIÓN TRICK ROOM: No aplica bajo TR.
-
-  5. TERMINOLOGÍA ESTRICTA (PROHIBIDO TRADUCIR JERGA):
-     - Reporte en Español, pero movimientos/objetos/habilidades EN INGLÉS ORIGINAL.
-     - SIEMPRE "Trick Room", "Tailwind", "Entry Hazards", "Setup Sweeper", "Speed Control".
+━━━ CRITERIOS DE PENALIZACIÓN SEVERA ━━━
+- MONOTYPE PROHIBIDO (a menos que config.isMonotype=true):
+  Si el equipo resultante tiene 4+ Pokémon del mismo tipo, es un FALLO GRAVE.
+  Cada Pokémon debe aportar al menos 1 tipo DIFERENTE al equipo.
+- DIVERSIDAD OFENSIVA OBLIGATORIA:
+  El equipo DEBE cubrir al menos 4 tipos de ataque distintos entre todos sus moves.
+  Ej: Fuego, Agua, Eléctrico, Tierra — cobertura real.
+- ROLES ÚNICOS: No repitas el mismo rol. Si ya hay un sweeper físico, el siguiente debe ser
+  especial, un soporte, un pivot, un setter o un wall.
+- PROTECCIÓN OBLIGATORIA EN DOUBLES: En VGC/Doubles, al menos 3-4 Pokémon DEBEN tener Protect.
+- REGLA CHOICE/ASSAULT VEST: Si un Pokémon lleva Choice Band/Specs/Scarf o Assault Vest,
+  sus 4 movimientos DEBEN ser de daño directo. Protect o moves de estado = error grave.
+- EVIOLITE: Pre-evoluciones viables (Porygon2, Dusclops, Clefairy) sin Eviolite = fallo táctico.
+- CONTROL DE VELOCIDAD: Sin Tailwind, Trick Room, Icy Wind o Choice Scarf el equipo es débil.
+- EL LÍDER SIEMPRE RECIBE BUILD COMPLETA: Si hay un líder, sus moves y item NO pueden estar vacíos.
 `;

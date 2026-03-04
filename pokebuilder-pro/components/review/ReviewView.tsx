@@ -12,6 +12,7 @@ import { LeaderSearch } from "@/components/builder/LeaderSearch";
 import { ManualBuildModal } from "@/components/review/ManualBuildModal";
 import { TypeBadge } from "@/components/ui/TypeBadge";
 import { getTeamWeaknessProfile } from "@/utils/type-chart";
+import { enrichTeamWithTypes } from "@/utils/fetchPokemonTypes";
 import {
   ShieldCheck, Trophy, TrendingDown, Lightbulb,
   ClipboardPaste, Plus, X, Trash2, FileText,
@@ -260,15 +261,23 @@ export function ReviewView() {
     setBuilds(prev => ({ ...prev, [String(p.id)]: build }));
   }, [team]);
 
-  function handleParsePaste() {
+  async function handleParsePaste() {
     setPasteError(null);
     if (!paste.trim()) { setPasteError("Pega un equipo primero."); return; }
     try {
-      const { team:t, builds:b } = parseShowdownPaste(paste);
-      if (t.length===0) { setPasteError("No se pudo leer el equipo. Verifica el formato."); return; }
-      setTeam([...t, ...Array(6-t.length).fill(null)] as (TeamMember|null)[]);
-      setBuilds(b); setSelectedPokemon(null); reset(); setPaste("");
-    } catch { setPasteError("Error al parsear el paste."); }
+      const { team: t, builds: b } = parseShowdownPaste(paste);
+      if (t.length === 0) { setPasteError("No se pudo leer el equipo. Verifica el formato."); return; }
+      // FIX: enricher obtiene tipo1/tipo2/sprite_url reales desde la BD
+      // parseShowdownPaste deja tipo1:"" porque no tiene acceso a la BD
+      const enriched = await enrichTeamWithTypes(t);
+      setTeam([...enriched, ...Array(6 - enriched.length).fill(null)] as (TeamMember | null)[]);
+      setBuilds(b);
+      setSelectedPokemon(null);
+      reset();
+      setPaste("");
+    } catch {
+      setPasteError("Error al parsear el paste.");
+    }
   }
 
   function handleCopy() {

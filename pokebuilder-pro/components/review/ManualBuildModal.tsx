@@ -6,6 +6,7 @@ import type { TeamMember, Build } from "@/types/pokemon";
 import { PokemonSprite } from "@/components/pokemon/PokemonSprite";
 import { TypeBadge } from "@/components/ui/TypeBadge";
 import { X, Search, Check, Loader2, Zap, Shield, Sword } from "lucide-react";
+import { ItemSprite } from "@/components/ui/ItemSprite";
 
 /* ─── Types ─────────────────────────────────────────────── */
 interface MoveData {
@@ -209,7 +210,7 @@ export function ManualBuildModal({ pokemon,initialBuild,onSave,onClose }:ManualB
 
   const TABS = [
     { id:"moveset" as Tab, label:"Moveset",    shortLabel:"MV", icon:<Sword size={13}/>,   badge:selectedMoves.filter(Boolean).length>0?String(selectedMoves.filter(Boolean).length):undefined },
-    { id:"item"    as Tab, label:"Ítem",       shortLabel:"IT", icon:"🎒",                  badge:item?"✓":undefined },
+    { id:"item"    as Tab, label:"Ítem",       shortLabel:"IT", icon:<ItemSprite item={item||"choice-band"} size={13}/>,                  badge:item?"✓":undefined },
     { id:"ability" as Tab, label:"Habilidad",  shortLabel:"HA", icon:<Zap size={13}/>,      badge:ability?"✓":undefined },
     { id:"nature"  as Tab, label:"Naturaleza", shortLabel:"NA", icon:"🌿",                  badge:nature?"✓":undefined },
     { id:"tera"    as Tab, label:"Tera",       shortLabel:"TR", icon:"🔷",                  badge:teraType?"✓":undefined },
@@ -249,7 +250,7 @@ export function ManualBuildModal({ pokemon,initialBuild,onSave,onClose }:ManualB
             </div>
             {/* Build summary pills */}
             <div className="hidden sm:flex gap-1 flex-wrap justify-end max-w-[160px]">
-              {item&&<span className="text-[0.55rem] px-1.5 py-0.5 rounded-full truncate max-w-[80px]" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}>🎒 {item}</span>}
+              {item&&<span className="text-[0.55rem] px-1.5 py-0.5 rounded-full truncate max-w-[80px] flex items-center gap-1" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}><ItemSprite item={item} size={12}/>{item}</span>}
               {ability&&<span className="text-[0.55rem] px-1.5 py-0.5 rounded-full truncate max-w-[80px]" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}>{ability}</span>}
             </div>
             <div role="button" tabIndex={0} onClick={onClose} onKeyDown={e=>{if(e.key==="Enter")onClose();}}
@@ -371,7 +372,7 @@ export function ManualBuildModal({ pokemon,initialBuild,onSave,onClose }:ManualB
                     {item&&(
                       <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
                         style={{background:"var(--accent-glow)",border:"1.5px solid var(--accent)"}}>
-                        <span className="text-base">🎒</span>
+                        <ItemSprite item={item} size={24}/>
                         <span className="flex-1 font-semibold text-sm" style={{color:"var(--text-primary)"}}>{item}</span>
                         <div role="button" tabIndex={0} onClick={()=>setItem("")} className="cursor-pointer"><X size={13} style={{color:"var(--text-muted)"}}/></div>
                       </div>
@@ -390,7 +391,7 @@ export function ManualBuildModal({ pokemon,initialBuild,onSave,onClose }:ManualB
                           onKeyDown={e=>{if(e.key==="Enter"){setItem(it);setItemSearch("");}}}
                           className="flex items-center gap-3 px-3 py-3 rounded-xl cursor-pointer transition-all"
                           style={{background:item===it?"var(--accent-glow)":"var(--bg-input)",border:`1.5px solid ${item===it?"var(--accent)":"var(--border)"}`}}>
-                          <span className="text-base flex-shrink-0">🎒</span>
+                          <ItemSprite item={it} size={20}/>
                           <span className="text-sm flex-1" style={{color:item===it?"var(--accent-light)":"var(--text-primary)"}}>{it}</span>
                           {item===it&&<Check size={14} style={{color:"var(--accent)"}}/>}
                         </div>
@@ -515,7 +516,7 @@ export function ManualBuildModal({ pokemon,initialBuild,onSave,onClose }:ManualB
           <div className="flex items-center justify-between px-4 py-3 flex-shrink-0"
             style={{borderTop:"1px solid var(--border)",background:"var(--bg-surface)"}}>
             <div className="flex gap-1.5 flex-wrap max-w-[55%]">
-              {item&&<span className="text-[0.58rem] px-1.5 py-0.5 rounded-full truncate max-w-[90px]" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}>🎒 {item}</span>}
+              {item&&<span className="text-[0.58rem] px-1.5 py-0.5 rounded-full truncate max-w-[90px] flex items-center gap-1" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}><ItemSprite item={item} size={11}/>{item}</span>}
               {ability&&<span className="text-[0.58rem] px-1.5 py-0.5 rounded-full truncate max-w-[90px]" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}>{ability}</span>}
               {nature&&<span className="text-[0.58rem] px-1.5 py-0.5 rounded-full" style={{background:"var(--bg-input)",color:"var(--text-secondary)",border:"1px solid var(--border)"}}>{nature}</span>}
             </div>

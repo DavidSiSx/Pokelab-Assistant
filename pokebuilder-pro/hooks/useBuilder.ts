@@ -1,39 +1,80 @@
 "use client";
 
+/**
+ * hooks/useBuilder.ts  —  drop-in replacement del original
+ *
+ * Nuevos campos en BuilderState:
+ *
+ * ① loadingPhase: string
+ *    Fase actual del pipeline, actualizada con setTimeout basado en
+ *    el timing real del backend (pool ~2s, selección IA ~30s, reportes ~25s).
+ *    BuilderView puede mostrarla en el botón en lugar de "Generando…" genérico.
+ *    Ejemplo: "Consultando IA — seleccionando…"
+ *
+ * ② warnings: string[]
+ *    Array de strings que YA llega en response.warnings[] del backend
+ *    pero que el frontend ignoraba completamente.
+ *    Ejemplos reales:
+ *      "⚠️ La IA no respetó todas las reglas: IDs no encontrados: 24, 38"
+ *      "Reporte parcialmente incompleto: Campo 'typesCoverage' ausente"
+ *      "Pool reducido: solo 3 candidatos disponibles"
+ *    BuilderView puede renderizarlos en un WarningBanner bajo el error.
+ *
+ * ③ cacheHit: boolean
+ *    true si la respuesta llegó del caché del servidor (meta.fromCache).
+ *    Permite mostrar "⚡ Desde caché (0.3s)" en el UI.
+ *
+ * Todo lo demás: sin cambios. Misma API, mismos tipos, misma lógica de feedback.
+ */
+
 import { useState, useCallback, useReducer } from "react";
 import type { TeamMember, Build } from "@/types/pokemon";
 import type { BuilderConfig } from "@/types/config";
 import type { AiReport } from "@/types/api";
 import { DEFAULT_CONFIG } from "@/types/config";
 
+// ─────────────────────────────────────────────────────────────────
+// Estado
+// ─────────────────────────────────────────────────────────────────
 export interface BuilderState {
-  team: (TeamMember | null)[];
-  lockedSlots: boolean[];
-  builds: Record<string, Build>;
-  config: BuilderConfig;
-  aiReport: AiReport | null;
-  blacklist: string[];
-  feedback: string;
-  loading: boolean;
-  error: string | null;
+  team:         (TeamMember | null)[];
+  lockedSlots:  boolean[];
+  builds:       Record<string, Build>;
+  config:       BuilderConfig;
+  aiReport:     AiReport | null;
+  blacklist:    string[];
+  feedback:     string;
+  loading:      boolean;
+  loadingPhase: string;    // ①
+  warnings:     string[];  // ②
+  cacheHit:     boolean;   // ③
+  error:        string | null;
 }
 
 type BuilderAction =
-  | { type: "SET_TEAM"; team: (TeamMember | null)[]; builds: Record<string, Build>; aiReport: AiReport | null }
-  | { type: "SET_SLOT"; index: number; pokemon: TeamMember | null }
-  | { type: "LOCK_SLOT"; index: number; locked: boolean }
-  | { type: "SET_CONFIG"; config: Partial<BuilderConfig> }
-  | { type: "SET_FEEDBACK"; feedback: string }
+  | { type: "SET_TEAM"; team: (TeamMember | null)[]; builds: Record<string, Build>; aiReport: AiReport | null; warnings: string[]; cacheHit: boolean }
+  | { type: "SET_SLOT";         index: number; pokemon: TeamMember | null }
+  | { type: "LOCK_SLOT";        index: number; locked: boolean }
+  | { type: "SET_CONFIG";       config: Partial<BuilderConfig> }
+  | { type: "SET_FEEDBACK";     feedback: string }
   | { type: "ADD_TO_BLACKLIST"; name: string }
   | { type: "CLEAR_BLACKLIST" }
-  | { type: "SET_LOADING"; loading: boolean }
-  | { type: "SET_ERROR"; error: string | null }
+  | { type: "SET_LOADING";      loading: boolean; phase?: string }
+  | { type: "SET_PHASE";        phase: string }
+  | { type: "SET_ERROR";        error: string | null }
   | { type: "RESET" };
 
 function builderReducer(state: BuilderState, action: BuilderAction): BuilderState {
   switch (action.type) {
     case "SET_TEAM":
-      return { ...state, team: action.team, builds: action.builds, aiReport: action.aiReport, loading: false, error: null };
+      return {
+        ...state,
+        team: action.team, builds: action.builds, aiReport: action.aiReport,
+        loading: false, loadingPhase: "",
+        warnings: action.warnings,
+        cacheHit: action.cacheHit,
+        error: null,
+      };
     case "SET_SLOT": {
       const t = [...state.team]; t[action.index] = action.pokemon;
       return { ...state, team: t };
@@ -47,13 +88,20 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
     case "SET_FEEDBACK":
       return { ...state, feedback: action.feedback };
     case "ADD_TO_BLACKLIST":
-      return { ...state, blacklist: state.blacklist.includes(action.name) ? state.blacklist : [...state.blacklist, action.name] };
+      return {
+        ...state,
+        blacklist: state.blacklist.includes(action.name)
+          ? state.blacklist
+          : [...state.blacklist, action.name],
+      };
     case "CLEAR_BLACKLIST":
       return { ...state, blacklist: [] };
     case "SET_LOADING":
-      return { ...state, loading: action.loading, error: null };
+      return { ...state, loading: action.loading, loadingPhase: action.phase ?? "", error: null };
+    case "SET_PHASE":
+      return { ...state, loadingPhase: action.phase };
     case "SET_ERROR":
-      return { ...state, error: action.error, loading: false };
+      return { ...state, error: action.error, loading: false, loadingPhase: "" };
     case "RESET":
       return initialState;
     default:
@@ -62,23 +110,27 @@ function builderReducer(state: BuilderState, action: BuilderAction): BuilderStat
 }
 
 const initialState: BuilderState = {
-  team: [null, null, null, null, null, null],
-  lockedSlots: [false, false, false, false, false, false],
-  builds: {},
-  config: DEFAULT_CONFIG,
-  aiReport: null,
-  blacklist: [],
-  feedback: "",
-  loading: false,
-  error: null,
+  team:         [null, null, null, null, null, null],
+  lockedSlots:  [false, false, false, false, false, false],
+  builds:       {},
+  config:       DEFAULT_CONFIG,
+  aiReport:     null,
+  blacklist:    [],
+  feedback:     "",
+  loading:      false,
+  loadingPhase: "",
+  warnings:     [],
+  cacheHit:     false,
+  error:        null,
 };
 
-// ── Feedback parser — safe against undefined/null input ───────────────────
+// ─────────────────────────────────────────────────────────────────
+// Feedback parser — sin cambios vs original
+// ─────────────────────────────────────────────────────────────────
 function parseFeedback(
   feedback: string | undefined | null,
   currentTeam: (TeamMember | null)[]
 ): { blacklist: string[]; strategyHints: string } {
-  // ⚡ CRITICAL FIX: guard against undefined (feedbackOverride may be undefined)
   const safeFeedback = typeof feedback === "string" ? feedback.trim() : "";
   if (!safeFeedback) return { blacklist: [], strategyHints: "" };
 
@@ -110,16 +162,16 @@ function parseFeedback(
   }
 
   const strategyKeywords: Record<string, string> = {
-    stall: "Priorizar estrategia de stall y resistencia.",
-    sol: "Usar equipo de sol con abusadores de Drought/Chlorophyll.",
-    lluvia: "Usar equipo de lluvia con Swift Swim.",
-    arena: "Usar equipo de arena (Sand).",
-    granizo: "Usar equipo de nieve/granizo (Snow).",
+    stall:        "Priorizar estrategia de stall y resistencia.",
+    sol:          "Usar equipo de sol con abusadores de Drought/Chlorophyll.",
+    lluvia:       "Usar equipo de lluvia con Swift Swim.",
+    arena:        "Usar equipo de arena (Sand).",
+    granizo:      "Usar equipo de nieve/granizo (Snow).",
     "trick room": "Usar Trick Room como control de velocidad.",
-    tailwind: "Usar Tailwind como control de velocidad.",
-    agresivo: "Priorizar ataques directos y presión ofensiva.",
-    ofensivo: "Equipo hiper ofensivo, priorizar sweep y revenge kill.",
-    balance: "Equipo balanceado con opciones tanto ofensivas como defensivas.",
+    tailwind:     "Usar Tailwind como control de velocidad.",
+    agresivo:     "Priorizar ataques directos y presión ofensiva.",
+    ofensivo:     "Equipo hiper ofensivo, priorizar sweep y revenge kill.",
+    balance:      "Equipo balanceado con opciones tanto ofensivas como defensivas.",
   };
 
   const foundHints: string[] = [];
@@ -130,13 +182,42 @@ function parseFeedback(
   return { blacklist: [...new Set(blacklist)], strategyHints: foundHints.join(" ") };
 }
 
+// ─────────────────────────────────────────────────────────────────
+// ① Fases de loading sintéticas
+// Timing basado en el pipeline real del backend:
+//   0ms    — pool builder (rápido, ~1-2s)
+//   3s     — selección IA (la llamada más larga, ~25-40s)
+//   35s    — builds recibidos, generando reporte
+//   60s    — reporte en progreso
+//   85s    — fallback "casi listo"
+// ─────────────────────────────────────────────────────────────────
+const LOADING_PHASES: Array<{ label: string; delayMs: number }> = [
+  { label: "Construyendo pool de candidatos…", delayMs: 0     },
+  { label: "Consultando IA — eligiendo equipo…", delayMs: 3000 },
+  { label: "Generando builds y EVs…",           delayMs: 35000 },
+  { label: "Analizando sinergias del equipo…",  delayMs: 60000 },
+  { label: "Casi listo…",                       delayMs: 85000 },
+];
+
+// ─────────────────────────────────────────────────────────────────
+// Hook principal
+// ─────────────────────────────────────────────────────────────────
 export function useBuilder() {
   const [state, dispatch] = useReducer(builderReducer, initialState);
-  const [sessionId] = useState(() => `sess_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const [sessionId] = useState(
+    () => `sess_${Date.now()}_${Math.random().toString(36).slice(2)}`
+  );
 
   const generateTeam = useCallback(
     async (leader?: TeamMember | null, feedbackOverride?: string) => {
-      dispatch({ type: "SET_LOADING", loading: true });
+      // Arrancar carga con primera fase
+      dispatch({ type: "SET_LOADING", loading: true, phase: LOADING_PHASES[0].label });
+
+      // ① Programar rotación de fases sintéticas
+      const phaseTimers = LOADING_PHASES.slice(1).map(({ label, delayMs }) =>
+        setTimeout(() => dispatch({ type: "SET_PHASE", phase: label }), delayMs)
+      );
+      const clearPhases = () => phaseTimers.forEach(clearTimeout);
 
       const feedback = typeof feedbackOverride === "string" ? feedbackOverride : state.feedback;
       const { blacklist: fbBlacklist, strategyHints } = parseFeedback(feedback, state.team);
@@ -144,26 +225,32 @@ export function useBuilder() {
 
       const configWithHints: BuilderConfig = {
         ...state.config,
-        customStrategy: [state.config.customStrategy, strategyHints].filter(Boolean).join(" "),
+        customStrategy: [state.config.customStrategy, strategyHints]
+          .filter(Boolean)
+          .join(" "),
         generationMode: leader ? "leader" : "scratch",
       };
 
       const lockedTeam: TeamMember[] = [];
       if (leader) lockedTeam.push(leader);
       state.team.forEach((slot, i) => {
-        if (slot && state.lockedSlots[i] && slot.id !== leader?.id) lockedTeam.push(slot);
+        if (slot && state.lockedSlots[i] && slot.id !== leader?.id) {
+          lockedTeam.push(slot);
+        }
       });
 
       try {
         const res = await fetch("/api/pokemon/suggest", {
-          method: "POST",
+          method:  "POST",
           headers: { "Content-Type": "application/json", "x-session-id": sessionId },
-          body: JSON.stringify({
+          body:    JSON.stringify({
             lockedTeam,
             config: { ...configWithHints, blacklist: mergedBlacklist },
             slotIndex: 0,
           }),
         });
+
+        clearPhases();
 
         if (!res.ok) {
           const err = await res.json();
@@ -171,11 +258,19 @@ export function useBuilder() {
           return;
         }
 
-        const data = await res.json();
-        const suggestions = data.suggestions ?? [];
+        const data       = await res.json();
+        const suggestions: any[] = data.suggestions ?? [];
 
-        const newTeam: (TeamMember | null)[] = [null, null, null, null, null, null];
-        const newBuilds: Record<string, Build> = {};
+        // ② Warnings que el backend ya envía — antes se ignoraban
+        const responseWarnings: string[] = data.warnings ?? [];
+
+        // ③ fromCache lo añade el route.ts cuando usa suggestCache
+        const cacheHit: boolean = data.meta?.fromCache ?? false;
+        if (cacheHit) dispatch({ type: "SET_PHASE", phase: "⚡ Cargando desde caché…" });
+
+        // Construir equipo y builds — lógica idéntica al original
+        const newTeam:   (TeamMember | null)[] = [null, null, null, null, null, null];
+        const newBuilds: Record<string, Build>  = {};
 
         if (leader) {
           newTeam[0] = leader;
@@ -186,59 +281,74 @@ export function useBuilder() {
         suggestions.forEach((sug: any, i: number) => {
           const slot = leader ? i + 1 : i;
           if (slot >= 6) return;
+
           const member: TeamMember = {
-            id: Number(sug.id) || (i + 1),
-            nombre: sug.name || sug.nombre || "",
-            tipo1: sug.tipo1 || "",
-            tipo2: sug.tipo2 || null,
-            rol: sug.role || sug.rol,
-            sprite_url: sug.sprite_url || null,
+            id:           Number(sug.id) || (i + 1),
+            nombre:       sug.name || sug.nombre || "",
+            tipo1:        sug.tipo1 || "",
+            tipo2:        sug.tipo2 || null,
+            rol:          sug.role || sug.rol,
+            sprite_url:   sug.sprite_url || null,
             national_dex: sug.national_dex || null,
           };
           newTeam[slot] = member;
 
           const build: Build = {
-            ability: sug.build?.ability ?? sug.ability ?? "",
-            nature: sug.build?.nature ?? sug.nature ?? "",
-            item: sug.build?.item ?? sug.item ?? "",
-            moves: sug.build?.moves ?? sug.moves ?? [],
-            ev_hp: sug.build?.ev_hp ?? sug.ev_hp ?? 0,
-            ev_atk: sug.build?.ev_atk ?? sug.ev_atk ?? 0,
-            ev_def: sug.build?.ev_def ?? sug.ev_def ?? 0,
-            ev_spa: sug.build?.ev_spa ?? sug.ev_spa ?? 0,
-            ev_spd: sug.build?.ev_spd ?? sug.ev_spd ?? 0,
-            ev_spe: sug.build?.ev_spe ?? sug.ev_spe ?? 0,
-            tera_type: sug.build?.teraType ?? sug.teraType ?? sug.tera_type,
+            ability:  sug.build?.ability  ?? sug.ability  ?? "",
+            nature:   sug.build?.nature   ?? sug.nature   ?? "",
+            item:     sug.build?.item     ?? sug.item     ?? "",
+            moves:    sug.build?.moves    ?? sug.moves    ?? [],
+            ev_hp:    sug.build?.ev_hp    ?? sug.ev_hp    ?? 0,
+            ev_atk:   sug.build?.ev_atk   ?? sug.ev_atk   ?? 0,
+            ev_def:   sug.build?.ev_def   ?? sug.ev_def   ?? 0,
+            ev_spa:   sug.build?.ev_spa   ?? sug.ev_spa   ?? 0,
+            ev_spd:   sug.build?.ev_spd   ?? sug.ev_spd   ?? 0,
+            ev_spe:   sug.build?.ev_spe   ?? sug.ev_spe   ?? 0,
+            tera_type:sug.build?.teraType ?? sug.teraType ?? sug.tera_type,
           };
           newBuilds[String(member.id)] = build;
         });
 
         const aiReport: AiReport | null = data.report
           ? {
-              estrategia: data.report.teamComposition ?? "",
-              fortalezas: data.report.strengths ?? [],
-              ventajas: data.report.strengths ?? [],
-              debilidades: data.report.weaknesses ?? [],
-              leads: [],
+              estrategia:  data.report.teamComposition ?? "",
+              fortalezas:  data.report.strengths       ?? [],
+              ventajas:    data.report.strengths       ?? [],
+              debilidades: data.report.weaknesses      ?? [],
+              leads:       [],
             }
           : null;
 
-        dispatch({ type: "SET_TEAM", team: newTeam, builds: newBuilds, aiReport });
-        if (fbBlacklist.length > 0) fbBlacklist.forEach((name) => dispatch({ type: "ADD_TO_BLACKLIST", name }));
+        dispatch({
+          type: "SET_TEAM",
+          team: newTeam, builds: newBuilds, aiReport,
+          warnings: responseWarnings,  // ②
+          cacheHit,                    // ③
+        });
+
+        if (fbBlacklist.length > 0) {
+          fbBlacklist.forEach((name) => dispatch({ type: "ADD_TO_BLACKLIST", name }));
+        }
+
       } catch {
+        clearPhases();
         dispatch({ type: "SET_ERROR", error: "Error de red. Intenta de nuevo." });
       }
     },
     [state, sessionId]
   );
 
-  const setSlot = useCallback((i: number, p: TeamMember | null) => dispatch({ type: "SET_SLOT", index: i, pokemon: p }), []);
-  const lockSlot = useCallback((i: number, l: boolean) => dispatch({ type: "LOCK_SLOT", index: i, locked: l }), []);
-  const setConfig = useCallback((c: Partial<BuilderConfig>) => dispatch({ type: "SET_CONFIG", config: c }), []);
-  const setFeedback = useCallback((f: string) => dispatch({ type: "SET_FEEDBACK", feedback: f }), []);
-  const addToBlacklist = useCallback((n: string) => dispatch({ type: "ADD_TO_BLACKLIST", name: n }), []);
-  const clearBlacklist = useCallback(() => dispatch({ type: "CLEAR_BLACKLIST" }), []);
-  const reset = useCallback(() => dispatch({ type: "RESET" }), []);
+  const setSlot        = useCallback((i: number, p: TeamMember | null) => dispatch({ type: "SET_SLOT",         index: i, pokemon: p }), []);
+  const lockSlot       = useCallback((i: number, l: boolean)           => dispatch({ type: "LOCK_SLOT",        index: i, locked: l }), []);
+  const setConfig      = useCallback((c: Partial<BuilderConfig>)       => dispatch({ type: "SET_CONFIG",       config: c }),            []);
+  const setFeedback    = useCallback((f: string)                        => dispatch({ type: "SET_FEEDBACK",     feedback: f }),          []);
+  const addToBlacklist = useCallback((n: string)                        => dispatch({ type: "ADD_TO_BLACKLIST", name: n }),              []);
+  const clearBlacklist = useCallback(()                                 => dispatch({ type: "CLEAR_BLACKLIST" }),                        []);
+  const reset          = useCallback(()                                 => dispatch({ type: "RESET" }),                                  []);
 
-  return { ...state, generateTeam, setSlot, lockSlot, setConfig, setFeedback, addToBlacklist, clearBlacklist, reset, sessionId };
+  return {
+    ...state,
+    generateTeam, setSlot, lockSlot, setConfig, setFeedback,
+    addToBlacklist, clearBlacklist, reset, sessionId,
+  };
 }

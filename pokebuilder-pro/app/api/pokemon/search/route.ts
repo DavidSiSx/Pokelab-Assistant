@@ -1,11 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/** Obtiene el nombre base de un Pokémon ignorando sufijos de forma */
+function getBaseName(nombre: string): string {
+  return nombre
+    .toLowerCase()
+    // Sufijos comunes de formas alternas en la DB
+    .replace(/-(f|m|female|male|alola|alolan|galar|galarian|hisui|hisuian|paldea|paldean|mega|mega-x|mega-y|gmax|primal|origin|crowned|shadow|ice|dusk-mane|dawn-wings|ultra|resolute|pirouette|therian|incarnate|black|white|complete|10|50|10-power-construct|50-power-construct|school|dusk|dawn|midday|midnight|original|core|blade|shield|sword|eternal|neutral|fan|frost|heat|mow|wash|small|large|super|average|phony|antique|roaming|family-of-three|amped|lowkey|rapid-strike|single-strike|hangry|full-belly|gorging|gulping|ice-rider|shadow-rider|crowned-sword|crowned-shield|white-striped|zero|hero|teal|indigo|hearthflame|wellspring|cornerstone|terastal|stellar|blue-striped|red-striped|east|west|plant|sandy|trash|sunny|rainy|snowy|zen|standard|zen-galar|blue|yellow|red|green|purple|white|black|orange|gray|striped|polteageist|sinistea|amorphous|mineral|natural|land|sky|speed|attack|defense|altered|origin|unbound|confined|unbound|baile|pom-pom|sensu|pau|dusk-lycanroc|midnight-lycanroc|midday-lycanroc|pirouette|aria|battle-bond|ash|original-cap|partner-cap|alola-cap|kanto-cap|unova-cap|sinnoh-cap|hoenn-cap|kalos-cap|world-cap|totem|disguised|busted|hangry|full-belly)$/, "")
+    .trim();
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-
-    // Acepta tanto ?q= (route.ts interno) como ?name= (componentes legacy)
     const query = (searchParams.get("q") ?? searchParams.get("name") ?? "").toLowerCase().trim();
     const tipo  = searchParams.get("tipo")?.toLowerCase();
     const tier  = searchParams.get("tier");
@@ -15,6 +22,9 @@ export async function GET(request: NextRequest) {
     if (!query || query.length < 2) {
       return NextResponse.json([]);
     }
+
+    // Traer más resultados para poder deduplicar
+    const rawLimit = limit * 4;
 
     const results = await prisma.pokemon.findMany({
       where: {
@@ -40,8 +50,10 @@ export async function GET(request: NextRequest) {
           take: 1,
         },
       },
-      orderBy: { nombre: "asc" },
-      take: limit,
+      orderBy: [
+        { nombre: "asc" },
+      ],
+      take: rawLimit,
     });
 
     const formatted = results.map((p) => ({
@@ -54,7 +66,25 @@ export async function GET(request: NextRequest) {
       usage_score: p.AnalisisMeta[0]?.usage_score ?? 0,
     }));
 
-    return NextResponse.json(formatted);
+    const queryHasSuffix = query.includes("-");
+
+    let deduped: typeof formatted;
+
+    if (queryHasSuffix) {
+      deduped = formatted;
+    } else {
+      const baseMap = new Map<string, typeof formatted[0]>();
+      for (const p of formatted) {
+        const base = getBaseName(p.nombre);
+        const existing = baseMap.get(base);
+        if (!existing || (p.usage_score ?? 0) > (existing.usage_score ?? 0)) {
+          baseMap.set(base, p);
+        }
+      }
+      deduped = Array.from(baseMap.values());
+    }
+
+    return NextResponse.json(deduped.slice(0, limit));
 
   } catch (error) {
     console.error("Error en /api/pokemon/search:", error);

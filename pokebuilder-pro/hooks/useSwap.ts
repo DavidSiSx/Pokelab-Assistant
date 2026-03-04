@@ -20,6 +20,38 @@ export interface SwapSuggestion {
   synergies: string[];
 }
 
+// ── Mapa de tipos en español e inglés ────────────────────────────
+const TYPE_ALIASES: Record<string, string> = {
+  // español
+  bicho: "bug", fuego: "fire", agua: "water", planta: "grass",
+  eléctrico: "electric", electrico: "electric", hielo: "ice",
+  lucha: "fighting", veneno: "poison", tierra: "ground",
+  volador: "flying", psíquico: "psychic", psiquico: "psychic",
+  roca: "rock", fantasma: "ghost", dragón: "dragon", dragon: "dragon",
+  siniestro: "dark", acero: "steel", hada: "fairy", normal: "normal",
+  // inglés directo
+  bug: "bug", fire: "fire", water: "water", grass: "grass",
+  electric: "electric", ice: "ice", fighting: "fighting",
+  poison: "poison", ground: "ground", flying: "flying",
+  psychic: "psychic", rock: "rock", ghost: "ghost",
+  dragon: "dragon", dark: "dark", steel: "steel", fairy: "fairy",
+};
+
+/**
+ * Detecta si el feedback menciona un tipo específico de Pokémon
+ * y devuelve el tipo en inglés si lo encuentra.
+ * Ej: "otro tipo bicho" → "bug"
+ *     "quiero solo tipo agua" → "water"
+ *     "dame un fighting" → "fighting"
+ */
+function detectTypeFromFeedback(feedback: string): string | null {
+  const lower = feedback.toLowerCase();
+  for (const [alias, type] of Object.entries(TYPE_ALIASES)) {
+    if (lower.includes(alias)) return type;
+  }
+  return null;
+}
+
 export function useSwap() {
   const [suggestions, setSuggestions] = useState<SwapSuggestion[]>([]);
   const [loading, setLoading] = useState(false);
@@ -39,14 +71,14 @@ export function useSwap() {
       setLoading(true);
       setError(null);
 
-      // Locked team = all filled slots EXCEPT the one being swapped
+      // Locked team = todos excepto el slot que se reemplaza
       const lockedTeam = currentTeam
         .filter((p, i) => p !== null && i !== slotIndex)
         .filter(Boolean) as TeamMember[];
 
       const blacklist: string[] = [];
 
-      // Auto-blacklist pokemon mentioned in feedback
+      // Auto-blacklist pokémon mencionados en feedback
       if (feedback) {
         currentTeam.forEach((p) => {
           if (p && feedback.toLowerCase().includes(p.nombre.toLowerCase())) {
@@ -55,9 +87,31 @@ export function useSwap() {
         });
       }
 
-      // Always blacklist the current slot so AI won't suggest the same pokemon
+      // Siempre blacklistear el Pokémon actual del slot
       const currentSlotPokemon = currentTeam[slotIndex];
       if (currentSlotPokemon) blacklist.push(currentSlotPokemon.nombre);
+
+      // FIX: Detectar tipo en el feedback y aplicar monotype si corresponde
+      const detectedType = feedback ? detectTypeFromFeedback(feedback) : null;
+      const monoConfig = detectedType
+        ? { ...config, isMonotype: true, monoTypeSelected: detectedType }
+        : config;
+
+      // Construir estrategia con el feedback del usuario de forma más directa
+      const strategyParts: string[] = [];
+      if (config.customStrategy) strategyParts.push(config.customStrategy);
+      if (feedback) {
+        // Pasar el feedback del usuario tal cual para que la IA lo interprete
+        strategyParts.push(`INSTRUCCIÓN DEL USUARIO: "${feedback}"`);
+        if (detectedType) {
+          strategyParts.push(
+            `FILTRO DE TIPO: El reemplazo DEBE ser de tipo ${detectedType.toUpperCase()} (tipo ${detectedType}). Busca en el pool SOLO Pokémon de tipo ${detectedType}.`
+          );
+        }
+      }
+      strategyParts.push(
+        "Sugiere 3 candidatos con ROLES DISTINTOS (ej: uno ofensivo, uno de soporte, uno pivot). Diversidad máxima."
+      );
 
       try {
         const res = await fetch("/api/pokemon/suggest", {
@@ -69,16 +123,11 @@ export function useSwap() {
           body: JSON.stringify({
             lockedTeam,
             config: {
-              ...config,
-              blacklist,
-              customStrategy: [
-                config.customStrategy,
-                feedback,
-                "Sugiere 3 candidatos con ROLES DISTINTOS (ej: uno ofensivo, uno de soporte, uno pivot). Diversidad máxima.",
-              ].filter(Boolean).join(" "),
+              ...monoConfig,
+              blacklist: [...(monoConfig.blacklist ?? []), ...blacklist],
+              customStrategy: strategyParts.filter(Boolean).join(" | "),
             },
             slotIndex,
-            // ⚡ KEY: tell the server to generate 3 alternatives instead of 1
             swapCount: 3,
           }),
         });
@@ -91,20 +140,12 @@ export function useSwap() {
         const data = await res.json();
         const raw: any[] = data.suggestions ?? [];
 
-        // Normalize to SwapSuggestion shape
         const normalized: SwapSuggestion[] = raw.map((sug: any) => {
-          // reasoning can be at root level or nested inside build object
           const reasoning =
-            sug.reasoning ??
-            sug.razonamiento ??
-            sug.build?.reasoning ??
-            "";
+            sug.reasoning ?? sug.razonamiento ?? sug.build?.reasoning ?? "";
 
-          // evSpread: use existing string or build from individual ev fields
           const evSpread =
-            sug.build?.evSpread ??
-            sug.evSpread ??
-            buildEvString(sug);
+            sug.build?.evSpread ?? sug.evSpread ?? buildEvString(sug);
 
           return {
             id: sug.id ?? sug.national_dex ?? Math.floor(Math.random() * 900000) + 1,
@@ -118,11 +159,8 @@ export function useSwap() {
               moves:   sug.build?.moves   ?? sug.moves   ?? [],
               evSpread,
               teraType:
-                sug.build?.teraType ??
-                sug.teraType ??
-                sug.build?.tera_type ??
-                sug.tera_type ??
-                "",
+                sug.build?.teraType ?? sug.teraType ??
+                sug.build?.tera_type ?? sug.tera_type ?? "",
             },
             synergies: Array.isArray(sug.synergies) ? sug.synergies : [],
           };
@@ -147,7 +185,6 @@ export function useSwap() {
   return { suggestions, loading, error, findReplacement, reset };
 }
 
-/** Build evSpread string from individual ev_* fields */
 function buildEvString(sug: any): string {
   const parts = [
     sug.ev_hp  && `${sug.ev_hp} HP`,

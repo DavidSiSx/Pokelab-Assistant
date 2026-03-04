@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase/apiAuth";
 import { checkRateLimit } from "@/lib/rateLimit";
 
-// ── Modelos válidos en orden de preferencia ─────────────────────────────────
-// gemini-1.5-flash-8b fue deprecado; usar 2.5-flash como principal
+// ── Modelos válidos en orden de preferencia ──────────────────────
 const GEMINI_MODELS = [
   "gemini-2.5-flash",
   "gemini-2.0-flash",
@@ -19,7 +18,7 @@ async function callGemini(prompt: string, apiKey: string, model: string): Promis
       contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.5,
-        maxOutputTokens: 4096,
+        maxOutputTokens: 8192, // FIX: era 4096 — el JSON del review puede superar 4096 tokens con pokemonRatings
         responseMimeType: "application/json",
       },
     }),
@@ -55,12 +54,78 @@ async function generateWithFallback(prompt: string): Promise<string> {
     } catch (err: any) {
       lastError = err;
       const status = err?.status ?? 0;
-      // Only continue on rate-limit or not-found; throw others immediately
       if (status !== 429 && status !== 404 && status !== 503) throw err;
       console.warn(`⚠️ Review ${model} failed (${status}), trying next...`);
     }
   }
   throw lastError;
+}
+
+// FIX: parser robusto — igual al de ai-client.ts pero inline para no crear dependencia circular
+// El problema original: raw.replace(/^```.../) solo quita fences al inicio/fin pero
+// gemini-2.5-flash a veces devuelve JSON con texto ANTES del bloque, lo que deja
+// el string truncado y causa SyntaxError en JSON.parse.
+function parseReviewResponse(raw: string): Record<string, unknown> {
+  // Paso 1: limpiar markdown agresivamente desde cualquier posición
+  let cleaned = raw
+    .replace(/^[\s\S]*?```(?:json)?\s*/i, "")  // texto antes del fence + fence inicial
+    .replace(/\s*```[\s\S]*$/i, "")             // fence final + texto después
+    .trim();
+
+  if (cleaned.includes("```")) {
+    cleaned = cleaned.replace(/```(?:json)?/gi, "").trim();
+  }
+
+  // Paso 2: parse directo
+  try {
+    return JSON.parse(cleaned);
+  } catch (_) {}
+
+  // Paso 3: extraer primer JSON completo por balance de llaves
+  try {
+    const start = cleaned.indexOf("{");
+    if (start !== -1) {
+      let depth = 0, inString = false, escape = false, end = -1;
+      for (let i = start; i < cleaned.length; i++) {
+        const ch = cleaned[i];
+        if (escape)                    { escape = false; continue; }
+        if (ch === "\\" && inString)   { escape = true;  continue; }
+        if (ch === '"')                { inString = !inString; continue; }
+        if (inString)                  continue;
+        if (ch === "{") depth++;
+        if (ch === "}") { depth--; if (depth === 0) { end = i; break; } }
+      }
+      if (end !== -1) return JSON.parse(cleaned.slice(start, end + 1));
+    }
+  } catch (_) {}
+
+  // Paso 4: JSON truncado — cerrar llaves/corchetes pendientes
+  try {
+    const start = cleaned.indexOf("{");
+    if (start !== -1) {
+      let fragment = cleaned.slice(start);
+      let braces = 0, brackets = 0, inStr = false, esc = false;
+      for (const ch of fragment) {
+        if (esc)                  { esc = false; continue; }
+        if (ch === "\\" && inStr) { esc = true;  continue; }
+        if (ch === '"')           { inStr = !inStr; continue; }
+        if (inStr)                continue;
+        if (ch === "{") braces++;
+        if (ch === "}") braces--;
+        if (ch === "[") brackets++;
+        if (ch === "]") brackets--;
+      }
+      // Eliminar propiedad o coma incompleta al final
+      fragment = fragment
+        .replace(/,\s*"[^"]*"\s*:\s*[^,{[\]}"]*$/, "")
+        .replace(/,\s*$/, "");
+      fragment += "]".repeat(Math.max(0, brackets));
+      fragment += "}".repeat(Math.max(0, braces));
+      return JSON.parse(fragment);
+    }
+  } catch (_) {}
+
+  throw new Error(`parseReviewResponse: JSON malformed. Raw preview: ${raw.slice(0, 200)}`);
 }
 
 const REVIEW_PROMPT = (teamDesc: string, format: string) => `
@@ -121,9 +186,8 @@ export async function POST(request: NextRequest) {
 
     const raw = await generateWithFallback(REVIEW_PROMPT(teamDesc, format || "VGC 2025 Reg H"));
 
-    // Strip possible markdown fences
-    const clean = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-    const reviewData = JSON.parse(clean);
+    // FIX: usar parseReviewResponse robusto en lugar de JSON.parse directo
+    const reviewData = parseReviewResponse(raw);
 
     return NextResponse.json(reviewData);
 

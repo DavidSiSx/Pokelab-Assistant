@@ -160,21 +160,15 @@ CONSIDERACIONES COBBLEMON (Minecraft mod):
 // ─────────────────────────────────────────────────────────────────
 function buildMonotypePrompt(config: any): string {
   if (!config.isMonotype || !config.monoTypeSelected) return "";
+  const isTopMeta = (config.metaPreference ?? "balanced") === "extrememeta" || (config.metaPreference ?? "balanced") === "meta";
+  const prevoRule = isTopMeta
+    ? `\n  - PRIORIZA Pokémon en su forma final (fully evolved). EVITA pre-evoluciones como Venipede, Larvesta, etc. SOLO usa una pre-evolución si su tier es OU o superior y tiene una razón táctica clara.`
+    : `\n  - Puedes incluir pre-evoluciones SOLO si tienen un rol táctico claro (ej: Eviolite bulk). Si el tier es Unranked, PRIORIZA formas finales.`;
   return `MODO MONOTYPE ${config.monoTypeSelected.toUpperCase()}:
   - TODOS los Pokémon del equipo DEBEN ser de tipo ${config.monoTypeSelected}.
-  - El pool YA está pre-filtrado por tipo — SOLO usa Pokémon del pool.
-  - COBERTURA OFENSIVA OBLIGATORIA: Si el tipo carece de atacantes especiales,
-    DEBES incluir al menos 1 Pokémon mixto o especial aunque sea de nicho.
-    Prioriza la variación ofensiva sobre el usage_score en este caso.
-    Un Pokémon de nicho con SpA decente es MEJOR que 6 atacantes físicos idénticos.
-  - COBERTURA DE MOVES: Busca moves que cubran las debilidades comunes del tipo.
-    Ejemplo Monotype Agua: incluye Ice Beam o Energy Ball para cubrir Dragón/Planta.
-    Ejemplo Monotype Lucha: incluye Mach Punch (prioridad) y Stone Edge (cobertura).
-  - VARIACIÓN DE ROLES: Aunque todos sean del mismo tipo, asegura variedad de roles:
-    al menos 1 sweeper, 1 soporte/setter, 1 wall o pivot.
-  - Reporta en debilidades si el equipo depende de un solo eje de daño Y sugiere
-    específicamente qué tipo de Pokémon (rol/ataque) mejoraría el equipo.`;
-}
+  - El pool YA está pre-filtrado por tipo — SOLO usa Pokémon del pool.${prevoRule}
+`;
+} 
 
 // ─────────────────────────────────────────────────────────────────
 // WEATHER PROMPT
@@ -450,11 +444,18 @@ export function buildItemClauseRule(config: any): string {
   );
   return hasItemClause
     ? "3. ITEM CLAUSE ACTIVA: PROHIBIDO REPETIR OBJETOS EN EL MISMO EQUIPO. Cada Pokémon debe tener un item único."
-    : "3. OBJETOS: Variedad estratégica. Prioriza Eviolite y objetos exclusivos donde corresponda.";
-}
+    : config.isMonotype
+      ? "3. OBJETOS: Variedad estratégica. EVITA Eviolite salvo en pre-evoluciones con bulk táctico claro. Prioriza Life Orb, Choice items, Heavy-Duty Boots, Focus Sash."
+      : "3. OBJETOS: Variedad estratégica. Prioriza Eviolite y objetos exclusivos donde corresponda.";
+} 
 
 // ─────────────────────────────────────────────────────────────────
 // SELECTION PROMPT — primera llamada a Gemini
+//
+// FIX ⑦: validIds[] — lista explícita de IDs del pool inyectada en el prompt.
+//         La IA ve los números exactos y deja de inventar IDs fuera de rango.
+// FIX ⑧: previousErrors[] — errores de validación del intento anterior.
+//         Cada reintento es diferente: el prompt explica exactamente qué falló.
 // ─────────────────────────────────────────────────────────────────
 export function buildSelectionPrompt(
   candidatesString: string,
@@ -467,10 +468,22 @@ export function buildSelectionPrompt(
   experiencePrompt: string,
   itemClauseRule: string,
   comboPrompt: string = "",
+  validIds: number[] = [],        // FIX ⑦
+  previousErrors: string[] = [],  // FIX ⑧
 ): string {
   const isVGC = (config.format || "").toLowerCase().includes("vgc") ||
                 (config.format || "").toLowerCase().includes("doubles");
   const isMonotype = config.isMonotype && config.monoTypeSelected;
+
+  // FIX ⑦: línea compacta de IDs válidos — mucho más efectiva que instrucciones en prosa
+  const validIdsLine = validIds.length > 0
+    ? `\nIDs VÁLIDOS (SOLO estos números): [${validIds.join(",")}]\n`
+    : "";
+
+  // FIX ⑧: bloque de corrección para reintentos — solo aparece si hay errores previos
+  const correctionBlock = previousErrors.length > 0
+    ? `\n🚨 TU RESPUESTA ANTERIOR FUE RECHAZADA. Errores que DEBES corregir antes de responder:\n${previousErrors.map(e => `  • ${e}`).join("\n")}\n`
+    : "";
 
   const diversityRules = isMonotype
     ? `MODO MONOTYPE ${config.monoTypeSelected?.toUpperCase()}: Todos los Pokémon DEBEN ser de tipo ${config.monoTypeSelected}.
@@ -487,19 +500,22 @@ export function buildSelectionPrompt(
 Eres el Analista Táctico Principal de un equipo campeón mundial de Pokémon.
 Tu objetivo es crear EL MEJOR EQUIPO COMPETITIVO POSIBLE, no solo uno que funcione.
 ${modeModifiers}
-${comboPrompt ? `\n${comboPrompt}\n` : ""}
-
+${comboPrompt ? `\n${comboPrompt}\n` : ""}${correctionBlock}
 DIRECTIVA TÁCTICA: "${config.customStrategy || "Crea el equipo más sinérgico, diverso y competitivo posible"}"
 NIVEL DE ANÁLISIS: ${experiencePrompt}
 FORMATO: ${config.format || "VGC"}
 
 ${leaderName ? `LÍDER DEL EQUIPO: ${leaderName}.${leaderConstraints}
-⚠️ El líder SIEMPRE debe recibir un build COMPLETO con item, ability, nature y 4 moves válidos.` : ""}
+⚠️ REGLAS DEL LÍDER (IRROMPIBLES):
+  1. El líder ${leaderName} SIEMPRE aparece en el equipo final (slot 0).
+  2. Su build DEBE incluir: item competitivo, ability, nature y EXACTAMENTE 4 moves válidos y legales.
+  3. NO uses Eviolite en el líder a menos que sea una pre-evolución táctica conocida en el meta.
+  4. El equipo complementa al líder — el líder NO se adapta al equipo.` : ""}
 ${lockedString ? `\nPOKÉMON FIJADOS (NO cambiar):\n${lockedString}` : ""}
 
 CANDIDATOS DISPONIBLES:
 ${candidatesString}
-
+${validIdsLine}
 ━━━ REGLAS ESTRICTAS (IRROMPIBLES) ━━━
 
 ${diversityRules}
@@ -513,6 +529,7 @@ ${isVGC ? `REGLAS VGC/DOUBLES:
 LEGALIDAD:
   - NUNCA inventes movimientos, habilidades o items que no existen en los juegos.
   - NUNCA uses un Pokémon que no esté en el listado de CANDIDATOS.
+  - VERIFICA: cada ID en "selected_ids" DEBE estar en la lista de IDs VÁLIDOS de arriba.
 ${itemClauseRule}
 
 ${ELITE_COMPETITIVE_RULES}

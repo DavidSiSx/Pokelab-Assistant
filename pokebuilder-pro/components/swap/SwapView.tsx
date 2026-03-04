@@ -7,6 +7,7 @@ import type { TeamMember, Build } from "@/types/pokemon";
 import { PokemonSprite } from "@/components/pokemon/PokemonSprite";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PokeballPatternDense, Pokeball } from "@/components/ui/PokeballBg";
+import { ItemSprite } from "@/components/ui/ItemSprite";
 import { LeaderSearch } from "@/components/builder/LeaderSearch";
 import { ManualBuildModal } from "@/components/review/ManualBuildModal";
 import {
@@ -98,7 +99,12 @@ function SuggestionCard({ suggestion, onAccept }: { suggestion:SwapSuggestion; o
 
       {/* Quick info */}
       <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs px-1" style={{color:"var(--text-secondary)"}}>
-        {suggestion.build.item&&<span><span style={{color:"var(--text-muted)"}}>Item: </span>{suggestion.build.item}</span>}
+        {suggestion.build.item&&(
+          <span className="flex items-center gap-1.5">
+            <ItemSprite item={suggestion.build.item} size={18}/>
+            <span className="truncate">{suggestion.build.item}</span>
+          </span>
+        )}
         {suggestion.build.ability&&<span><span style={{color:"var(--text-muted)"}}>Hab: </span>{suggestion.build.ability}</span>}
         {suggestion.build.nature&&<span><span style={{color:"var(--text-muted)"}}>Nat: </span>{suggestion.build.nature}</span>}
         {suggestion.build.teraType&&<span><span style={{color:"var(--text-muted)"}}>Tera: </span>{suggestion.build.teraType}</span>}
@@ -342,8 +348,9 @@ export function SwapView() {
                         {p.nombre}
                       </span>
                       {manualBuilds[String(p.id)]?.item&&(
-                        <span style={{fontSize:"0.5rem",color:"var(--text-muted)",textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",width:"100%",padding:"0 2px"}}>
-                          @ {manualBuilds[String(p.id)].item}
+                        <span className="flex items-center justify-center gap-0.5 w-full" style={{fontSize:"0.5rem",color:"var(--text-muted)"}}>
+                          <ItemSprite item={manualBuilds[String(p.id)].item!} size={12}/>
+                          <span className="truncate" style={{maxWidth:52}}>{manualBuilds[String(p.id)].item}</span>
                         </span>
                       )}
                     </>
@@ -386,7 +393,12 @@ export function SwapView() {
                       <PokemonSprite name={pokemon.nombre} spriteUrl={pokemon.sprite_url} size={44} animate={isSel}/>
                     </div>
                     <span className="text-xs font-bold capitalize truncate w-full text-center" style={{color:"var(--text-primary)",fontSize:"0.62rem"}}>{pokemon.nombre}</span>
-                    {build?.item&&<span className="truncate w-full text-center" style={{color:"var(--text-muted)",fontSize:"0.55rem"}}>@ {build.item}</span>}
+                    {build?.item&&(
+                      <span className="flex items-center justify-center gap-0.5 w-full" style={{color:"var(--text-muted)",fontSize:"0.55rem"}}>
+                        <ItemSprite item={build.item} size={12}/>
+                        <span className="truncate" style={{maxWidth:56}}>{build.item}</span>
+                      </span>
+                    )}
                     {isAcc&&<span className="text-xs font-bold" style={{color:"var(--success)",fontSize:"0.6rem"}}>✓ Ok</span>}
                   </button>
                 );

@@ -259,10 +259,14 @@ export async function generateWithFallback(
       return result;
     } catch (err) {
       lastError = err;
-      console.warn(
-        `⚠️ Attempt ${i + 1}/${attempts.length} failed:`,
-        err instanceof Error ? err.message : err
-      );
+      try {
+        console.warn(
+          `⚠️ Attempt ${i + 1}/${attempts.length} failed:`,
+          err instanceof Error ? err.message : JSON.stringify(err)
+        );
+      } catch (e) {
+        console.warn(`⚠️ Attempt ${i + 1}/${attempts.length} failed: (unserializable error)`);
+      }
     }
   }
 
@@ -270,7 +274,12 @@ export async function generateWithFallback(
     `All AI generation attempts failed after ${attempts.length} tries`
   ) as AIError;
   error.code          = "GEMINI_ERROR";
-  error.details       = { lastError, totalAttempts: attempts.length };
+  // Attach a serializable summary of lastError to help debugging
+  try {
+    error.details = { lastError: typeof lastError === 'object' ? JSON.parse(JSON.stringify(lastError)) : String(lastError), totalAttempts: attempts.length };
+  } catch {
+    error.details = { lastError: String(lastError), totalAttempts: attempts.length };
+  }
   error.attemptedKeys = attempts.length;
   throw error;
 }

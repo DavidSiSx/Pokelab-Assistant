@@ -433,8 +433,8 @@ export function ReviewView() {
                   {selectedBuild.item&&<span>🎒 {selectedBuild.item}</span>}
                   {selectedBuild.ability&&<span>⚡ {selectedBuild.ability}</span>}
                   {selectedBuild.nature&&<span>🌿 {selectedBuild.nature}</span>}
-                  {selectedBuild.moves?.filter(Boolean).length>0&&(
-                    <span className="w-full">⚔️ {selectedBuild.moves.filter(Boolean).join(" · ")}</span>
+                  {(selectedBuild?.moves?.filter(Boolean).length ?? 0) > 0 && (
+                    <span className="w-full">⚔️ {selectedBuild?.moves?.filter(Boolean).join(" · ")}</span>
                   )}
                 </div>
               </div>

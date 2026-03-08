@@ -306,7 +306,7 @@ export function BuilderView() {
                   locked={lockedSlots[i]}
                   selected={selectedSlot === i}
                   onSelect={() => setSelectedSlot(selectedSlot === i ? null : i)}
-                  onLock={(locked) => lockSlot(i, locked)}
+                  onLock={(_idx, locked) => lockSlot(i, locked)}
                   onRemove={() => { setSlot(i, null); if (selectedSlot === i) setSelectedSlot(null); }}
                   onBlacklist={(name) => addToBlacklist(name)}
                   loading={loading}
@@ -396,7 +396,7 @@ export function BuilderView() {
                   </div>
                 )}
 
-                {aiReport && <AiReportPanel report={aiReport} />}
+                  {aiReport && <AiReportPanel report={aiReport as any} />}
               </div>
             )}
 

@@ -1,23 +1,34 @@
+/**
+ * ARCHIVO: components/pokemon/TeamSlot.tsx
+ *
+ * Fixes:
+ * ① Añadido onBlacklist?: (name: string) => void en TeamSlotProps
+ * ② Botón de blacklist dentro del slot (hover)
+ */
 "use client";
 
 import { useState } from "react";
-import { Lock, Unlock, X, Crown } from "lucide-react";
+import { Lock, Unlock, X, Crown, Ban } from "lucide-react";
 import type { TeamMember, Build } from "@/types/pokemon";
 import { TypeBadge } from "@/components/ui/TypeBadge";
 import { PokemonSprite } from "@/components/pokemon/PokemonSprite";
 import { PokeballOutline } from "@/components/ui/PokeballBg";
 
-interface TeamSlotProps {
-  index: number;
-  pokemon: TeamMember | null;
-  build?: Build;
-  locked?: boolean;
-  selected?: boolean;
-  isLeader?: boolean;
-  onLock?: (index: number, locked: boolean) => void;
-  onSelect?: (index: number) => void;
-  onRemove?: (index: number) => void;
-  compact?: boolean;
+export interface TeamSlotProps {
+  index:        number;
+  pokemon:      TeamMember | null;
+  build?:       Build;
+  locked?:      boolean;
+  selected?:    boolean;
+  isLeader?:    boolean;
+  // ✅ Fix: onLock recibe (index, locked) no solo (locked)
+  onLock?:      (index: number, locked: boolean) => void;
+  onSelect?:    (index: number) => void;
+  onRemove?:    (index: number) => void;
+  // ✅ Fix: añadido onBlacklist
+  onBlacklist?: (name: string) => void;
+  loading?:     boolean;
+  compact?:     boolean;
 }
 
 function BuildSummary({ build }: { build: Build }) {
@@ -46,13 +57,22 @@ function BuildSummary({ build }: { build: Build }) {
 
 export function TeamSlot({
   index, pokemon, build, locked = false, selected = false,
-  isLeader, onLock, onSelect, onRemove, compact = false,
+  isLeader, onLock, onSelect, onRemove, onBlacklist, loading = false, compact = false,
 }: TeamSlotProps) {
   const [hovered, setHovered] = useState(false);
   const isEmpty = !pokemon;
 
   const accentColor = isLeader ? "#ef4444" : "var(--accent)";
   const accentGlow  = isLeader ? "rgba(239,68,68,0.15)" : "var(--accent-glow)";
+
+  if (loading && isEmpty) {
+    return (
+      <div
+        className={`skeleton ${compact ? "p-2" : "p-3"}`}
+        style={{ borderRadius: "var(--radius-lg)", minHeight: compact ? 72 : 100 }}
+      />
+    );
+  }
 
   return (
     <div
@@ -83,93 +103,111 @@ export function TeamSlot({
 
       {isEmpty ? (
         <div className="flex flex-col items-center justify-center gap-2 py-3">
-          <PokeballOutline size={compact ? 36 : 44} opacity={0.15} className="animate-spin-slow" />
-          {!compact && (
-            <span className="text-[0.7rem] font-medium" style={{ color: "var(--text-muted)" }}>
-              Vacío
-            </span>
-          )}
+          <PokeballOutline size={compact ? 24 : 32} style={{ opacity: 0.2 }} />
+          <span className="text-xs" style={{ color: "var(--text-muted)" }}>Vacío</span>
         </div>
       ) : (
-        <div className="flex items-center gap-3 pt-1 relative z-[1]">
-          {/* Sprite */}
-          <div className="relative flex-shrink-0">
+        <>
+          {/* Leader crown */}
+          {isLeader && (
+            <span className="absolute top-2 right-2 z-10">
+              <Crown size={12} style={{ color: "#ef4444" }} />
+            </span>
+          )}
+
+          {/* Pokémon info */}
+          <div className="flex items-center gap-2 mt-2">
             <PokemonSprite
-              name={pokemon.nombre}
-              spriteUrl={pokemon.sprite_url}
-              size={compact ? 48 : 56}
+              name={pokemon!.nombre}
+              spriteUrl={pokemon!.sprite_url}
+              size={compact ? 36 : 48}
             />
-            {isLeader && (
-              <div className="absolute -top-1 -left-1 w-5 h-5 rounded-full flex items-center justify-center z-10"
-                style={{ background: "#ef4444", color: "#fff" }}>
-                <Crown size={9} />
+            <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+              <span className="font-semibold truncate capitalize text-sm"
+                style={{ color: "var(--text-primary)" }}>
+                {pokemon!.nombre}
+              </span>
+              <div className="flex gap-1 flex-wrap">
+                {pokemon!.tipo1 && <TypeBadge type={pokemon!.tipo1} size="sm" />}
+                {pokemon!.tipo2 && <TypeBadge type={pokemon!.tipo2} size="sm" />}
               </div>
-            )}
+              {build && !compact && <BuildSummary build={build} />}
+            </div>
           </div>
 
-          {/* Info */}
-          <div className="flex flex-col gap-1 min-w-0 flex-1">
-            <div className="flex items-center gap-1.5">
-              {isLeader && (
-                <span className="text-[0.6rem] font-bold uppercase px-1.5 py-0.5 rounded"
-                  style={{ background: "rgba(239,68,68,0.2)", color: "#ef4444" }}>
-                  Líder
-                </span>
-              )}
-              <span className="font-bold capitalize truncate"
-                style={{ color: "var(--text-primary)", fontSize: compact ? "0.8rem" : "0.875rem" }}>
-                {pokemon.nombre}
-              </span>
-            </div>
-            <div className="flex gap-1 flex-wrap">
-              {pokemon.tipo1 && <TypeBadge type={pokemon.tipo1} size="sm" />}
-              {pokemon.tipo2 && <TypeBadge type={pokemon.tipo2} size="sm" />}
-            </div>
-            {pokemon.rol && !compact && (
-              <span className="text-xs truncate" style={{ color: "var(--text-muted)" }}>
-                {pokemon.rol}
-              </span>
-            )}
-            {build && !compact && <BuildSummary build={build} />}
-          </div>
-
-          {/* Actions on hover */}
-          {hovered && (onLock || onRemove) && (
-            <div className="flex flex-col gap-1 ml-auto animate-fade-in-scale">
+          {/* Action buttons — visible on hover */}
+          {hovered && (
+            <div className="absolute top-1.5 right-1.5 flex gap-1 z-20">
+              {/* Lock/Unlock */}
               {onLock && (
-                <button className="btn-ghost p-1.5 rounded-lg"
-                  style={{ color: locked ? "var(--warning)" : "var(--text-muted)" }}
-                  onClick={(e) => { e.stopPropagation(); onLock(index, !locked); }}
-                  aria-label={locked ? "Desbloquear slot" : "Bloquear slot"}>
-                  {locked ? <Lock size={14} /> : <Unlock size={14} />}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // ✅ Fix: pasa (index, !locked) correctamente
+                    onLock(index, !locked);
+                  }}
+                  className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                  style={{
+                    background: locked ? "rgba(234,179,8,0.15)" : "var(--bg-input)",
+                    border: `1px solid ${locked ? "var(--warning)" : "var(--border)"}`,
+                  }}
+                  title={locked ? "Desbloquear" : "Bloquear"}
+                  aria-label={locked ? "Desbloquear slot" : "Bloquear slot"}
+                >
+                  {locked
+                    ? <Lock   size={11} style={{ color: "var(--warning)" }} />
+                    : <Unlock size={11} style={{ color: "var(--text-muted)" }} />
+                  }
                 </button>
               )}
-              {onRemove && !isLeader && (
-                <button className="btn-ghost p-1.5 rounded-lg"
-                  style={{ color: "var(--danger)" }}
-                  onClick={(e) => { e.stopPropagation(); onRemove(index); }}
-                  aria-label="Quitar Pokémon">
-                  <X size={14} />
+
+              {/* Blacklist */}
+              {onBlacklist && pokemon && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onBlacklist(pokemon.nombre);
+                  }}
+                  className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                  style={{
+                    background: "rgba(239,68,68,0.1)",
+                    border: "1px solid rgba(239,68,68,0.3)",
+                  }}
+                  title={`Banear ${pokemon.nombre}`}
+                  aria-label={`Banear ${pokemon.nombre}`}
+                >
+                  <Ban size={11} style={{ color: "var(--danger)" }} />
+                </button>
+              )}
+
+              {/* Remove */}
+              {onRemove && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onRemove(index);
+                  }}
+                  className="w-6 h-6 rounded-md flex items-center justify-center transition-colors"
+                  style={{
+                    background: "rgba(239,68,68,0.08)",
+                    border: "1px solid rgba(239,68,68,0.2)",
+                  }}
+                  title="Quitar del equipo"
+                  aria-label="Quitar del equipo"
+                >
+                  <X size={11} style={{ color: "var(--danger)" }} />
                 </button>
               )}
             </div>
           )}
-        </div>
-      )}
 
-      {/* Decorative */}
-      {!isEmpty && (
-        <div className="absolute -bottom-3 -right-3 pointer-events-none" aria-hidden="true">
-          <PokeballOutline size={48} opacity={0.04} />
-        </div>
-      )}
-
-      {/* Locked badge */}
-      {locked && !isEmpty && (
-        <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center z-10"
-          style={{ background: "var(--warning)", color: "var(--bg-base)" }}>
-          <Lock size={10} />
-        </div>
+          {/* Locked indicator */}
+          {locked && !hovered && (
+            <div className="absolute top-1.5 right-1.5 z-20">
+              <Lock size={11} style={{ color: "var(--warning)" }} />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

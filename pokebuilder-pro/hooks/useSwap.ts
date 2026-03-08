@@ -27,7 +27,7 @@ const TYPE_ALIASES: Record<string, string> = {
   eléctrico: "electric", electrico: "electric", hielo: "ice",
   lucha: "fighting", veneno: "poison", tierra: "ground",
   volador: "flying", psíquico: "psychic", psiquico: "psychic",
-  roca: "rock", fantasma: "ghost", dragón: "dragon", dragon: "dragon",
+  roca: "rock", fantasma: "ghost", dragón: "dragon",
   siniestro: "dark", acero: "steel", hada: "fairy", normal: "normal",
   // inglés directo
   bug: "bug", fire: "fire", water: "water", grass: "grass",
@@ -124,7 +124,7 @@ export function useSwap() {
             lockedTeam,
             config: {
               ...monoConfig,
-              blacklist: [...(monoConfig.blacklist ?? []), ...blacklist],
+              blacklist: [...((monoConfig as any).blacklist ?? []), ...blacklist],
               customStrategy: strategyParts.filter(Boolean).join(" | "),
             },
             slotIndex,

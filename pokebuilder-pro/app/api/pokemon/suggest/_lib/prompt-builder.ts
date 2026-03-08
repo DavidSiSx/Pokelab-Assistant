@@ -160,15 +160,21 @@ CONSIDERACIONES COBBLEMON (Minecraft mod):
 // ─────────────────────────────────────────────────────────────────
 function buildMonotypePrompt(config: any): string {
   if (!config.isMonotype || !config.monoTypeSelected) return "";
-  const isTopMeta = (config.metaPreference ?? "balanced") === "extrememeta" || (config.metaPreference ?? "balanced") === "meta";
-  const prevoRule = isTopMeta
-    ? `\n  - PRIORIZA Pokémon en su forma final (fully evolved). EVITA pre-evoluciones como Venipede, Larvesta, etc. SOLO usa una pre-evolución si su tier es OU o superior y tiene una razón táctica clara.`
-    : `\n  - Puedes incluir pre-evoluciones SOLO si tienen un rol táctico claro (ej: Eviolite bulk). Si el tier es Unranked, PRIORIZA formas finales.`;
   return `MODO MONOTYPE ${config.monoTypeSelected.toUpperCase()}:
   - TODOS los Pokémon del equipo DEBEN ser de tipo ${config.monoTypeSelected}.
-  - El pool YA está pre-filtrado por tipo — SOLO usa Pokémon del pool.${prevoRule}
-`;
-} 
+  - El pool YA está pre-filtrado por tipo — SOLO usa Pokémon del pool.
+  - COBERTURA OFENSIVA OBLIGATORIA: Si el tipo carece de atacantes especiales,
+    DEBES incluir al menos 1 Pokémon mixto o especial aunque sea de nicho.
+    Prioriza la variación ofensiva sobre el usage_score en este caso.
+    Un Pokémon de nicho con SpA decente es MEJOR que 6 atacantes físicos idénticos.
+  - COBERTURA DE MOVES: Busca moves que cubran las debilidades comunes del tipo.
+    Ejemplo Monotype Agua: incluye Ice Beam o Energy Ball para cubrir Dragón/Planta.
+    Ejemplo Monotype Lucha: incluye Mach Punch (prioridad) y Stone Edge (cobertura).
+  - VARIACIÓN DE ROLES: Aunque todos sean del mismo tipo, asegura variedad de roles:
+    al menos 1 sweeper, 1 soporte/setter, 1 wall o pivot.
+  - Reporta en debilidades si el equipo depende de un solo eje de daño Y sugiere
+    específicamente qué tipo de Pokémon (rol/ataque) mejoraría el equipo.`;
+}
 
 // ─────────────────────────────────────────────────────────────────
 // WEATHER PROMPT
@@ -431,7 +437,20 @@ export function buildCandidateString(candidates: any[], config: any): string {
       ? (getMegaStone(c.nombre) ? ` [MEGA: ${getMegaStone(c.nombre)}]` : " [SIN MEGA]")
       : "";
 
-    return `[ID: ${c.id}] ${c.nombre} (${types}) | Tier: ${tier} | Usage: ${usage}${megaNote}${perfil}`;
+    // FIX: incluir build de DB si existe — la IA DEBE usarlo como base
+    const dbParts: string[] = [];
+    if (c.db_item)    dbParts.push(`item:${c.db_item}`);
+    if (c.db_ability) dbParts.push(`ability:${c.db_ability}`);
+    if (c.db_nature)  dbParts.push(`nature:${c.db_nature}`);
+    if (c.db_role)    dbParts.push(`role:${c.db_role}`);
+    if (Array.isArray(c.db_moves) && c.db_moves.length > 0) {
+      dbParts.push(`moves:[${c.db_moves.join(",")}]`);
+    }
+    const dbBuild = dbParts.length > 0
+      ? ` ⚡DB_BUILD[${dbParts.join("|")}]`
+      : "";
+
+    return `[ID: ${c.id}] ${c.nombre} (${types}) | Tier: ${tier} | Usage: ${usage}${megaNote}${perfil}${dbBuild}`;
   }).join("\n");
 }
 
@@ -444,10 +463,8 @@ export function buildItemClauseRule(config: any): string {
   );
   return hasItemClause
     ? "3. ITEM CLAUSE ACTIVA: PROHIBIDO REPETIR OBJETOS EN EL MISMO EQUIPO. Cada Pokémon debe tener un item único."
-    : config.isMonotype
-      ? "3. OBJETOS: Variedad estratégica. EVITA Eviolite salvo en pre-evoluciones con bulk táctico claro. Prioriza Life Orb, Choice items, Heavy-Duty Boots, Focus Sash."
-      : "3. OBJETOS: Variedad estratégica. Prioriza Eviolite y objetos exclusivos donde corresponda.";
-} 
+    : "3. OBJETOS: Variedad estratégica. Prioriza Eviolite y objetos exclusivos donde corresponda.";
+}
 
 // ─────────────────────────────────────────────────────────────────
 // SELECTION PROMPT — primera llamada a Gemini
@@ -506,11 +523,7 @@ NIVEL DE ANÁLISIS: ${experiencePrompt}
 FORMATO: ${config.format || "VGC"}
 
 ${leaderName ? `LÍDER DEL EQUIPO: ${leaderName}.${leaderConstraints}
-⚠️ REGLAS DEL LÍDER (IRROMPIBLES):
-  1. El líder ${leaderName} SIEMPRE aparece en el equipo final (slot 0).
-  2. Su build DEBE incluir: item competitivo, ability, nature y EXACTAMENTE 4 moves válidos y legales.
-  3. NO uses Eviolite en el líder a menos que sea una pre-evolución táctica conocida en el meta.
-  4. El equipo complementa al líder — el líder NO se adapta al equipo.` : ""}
+⚠️ El líder SIEMPRE debe recibir un build COMPLETO con item, ability, nature y 4 moves válidos.` : ""}
 ${lockedString ? `\nPOKÉMON FIJADOS (NO cambiar):\n${lockedString}` : ""}
 
 CANDIDATOS DISPONIBLES:
@@ -531,6 +544,13 @@ LEGALIDAD:
   - NUNCA uses un Pokémon que no esté en el listado de CANDIDATOS.
   - VERIFICA: cada ID en "selected_ids" DEBE estar en la lista de IDs VÁLIDOS de arriba.
 ${itemClauseRule}
+
+BUILDS DE BASE DE DATOS:
+  - Los candidatos marcados con DB_BUILD tienen builds VERIFICADAS en la base de datos.
+  - DEBES usar el item, ability y moves del DB_BUILD como base PRIORITARIA.
+  - Solo cambia un valor del DB_BUILD si hay razon tactica clara (ej: item clause).
+  - Si no hay DB_BUILD, crea el build con items y moves REALES del meta competitivo.
+  - PROHIBIDO repetir items en el equipo bajo cualquier circunstancia.
 
 ${ELITE_COMPETITIVE_RULES}
 
